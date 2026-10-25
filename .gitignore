@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env
+.env
+.env.local
+backend/.env
+
+# SQLite
+*.db
+*.sqlite3
+backend/app/kindred.db
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+frontend/.env.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
