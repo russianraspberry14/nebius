@@ -1,0 +1,236 @@
+import sqlite3
+from typing import Optional
+
+from app.db import get_connection
+from app.models import (
+    FactConfirm,
+    FactOut,
+    KeyDateCreate,
+    KeyDateOut,
+    NoteOut,
+    PersonDetail,
+    PersonOut,
+    PersonUpdate,
+)
+
+
+def _row_to_person(row: sqlite3.Row) -> PersonOut:
+    return PersonOut(**dict(row))
+
+
+def _row_to_key_date(row: sqlite3.Row) -> KeyDateOut:
+    d = dict(row)
+    d["recurring"] = bool(d["recurring"])
+    return KeyDateOut(**d)
+
+
+def _row_to_note(row: sqlite3.Row) -> NoteOut:
+    return NoteOut(**dict(row))
+
+
+def _row_to_fact(row: sqlite3.Row) -> FactOut:
+    d = dict(row)
+    d["confirmed"] = bool(d["confirmed"])
+    return FactOut(**d)
+
+
+# ---- Person ----
+
+def create_person(name: str, relationship: str, home_city: Optional[str]) -> PersonOut:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO person (name, relationship, home_city) VALUES (?, ?, ?)",
+            (name, relationship, home_city),
+        )
+        conn.commit()
+        return get_person(cur.lastrowid, conn=conn)
+    finally:
+        conn.close()
+
+
+def list_people() -> list[PersonOut]:
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT * FROM person ORDER BY created_at DESC").fetchall()
+        return [_row_to_person(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_person(person_id: int, conn: Optional[sqlite3.Connection] = None) -> Optional[PersonOut]:
+    owns_conn = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute("SELECT * FROM person WHERE id = ?", (person_id,)).fetchone()
+        return _row_to_person(row) if row else None
+    finally:
+        if owns_conn:
+            conn.close()
+
+
+def update_person(person_id: int, data: PersonUpdate) -> Optional[PersonOut]:
+    fields = data.model_dump(exclude_unset=True)
+    if not fields:
+        return get_person(person_id)
+    conn = get_connection()
+    try:
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        conn.execute(
+            f"UPDATE person SET {set_clause} WHERE id = ?",
+            (*fields.values(), person_id),
+        )
+        conn.commit()
+        return get_person(person_id, conn=conn)
+    finally:
+        conn.close()
+
+
+def delete_person(person_id: int) -> bool:
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM person WHERE id = ?", (person_id,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- KeyDate ----
+
+def create_key_date(person_id: int, data: KeyDateCreate) -> KeyDateOut:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO key_date (person_id, label, date, recurring) VALUES (?, ?, ?, ?)",
+            (person_id, data.label, data.date, int(data.recurring)),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM key_date WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return _row_to_key_date(row)
+    finally:
+        conn.close()
+
+
+def list_key_dates(person_id: int) -> list[KeyDateOut]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM key_date WHERE person_id = ? ORDER BY date", (person_id,)
+        ).fetchall()
+        return [_row_to_key_date(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def delete_key_date(key_date_id: int) -> bool:
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM key_date WHERE id = ?", (key_date_id,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- Note ----
+
+def create_note(person_id: int, text: str) -> NoteOut:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO note (person_id, text) VALUES (?, ?)", (person_id, text)
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM note WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return _row_to_note(row)
+    finally:
+        conn.close()
+
+
+def get_note(note_id: int) -> Optional[NoteOut]:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM note WHERE id = ?", (note_id,)).fetchone()
+        return _row_to_note(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_notes(person_id: int) -> list[NoteOut]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM note WHERE person_id = ? ORDER BY created_at DESC", (person_id,)
+        ).fetchall()
+        return [_row_to_note(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def delete_note(note_id: int) -> bool:
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM note WHERE id = ?", (note_id,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- Fact ----
+
+def create_facts(person_id: int, note_id: int, facts: list[FactConfirm]) -> list[FactOut]:
+    if not facts:
+        return []
+    conn = get_connection()
+    try:
+        saved = []
+        for f in facts:
+            cur = conn.execute(
+                """INSERT INTO fact (person_id, note_id, category, value, sentiment, confidence, confirmed)
+                   VALUES (?, ?, ?, ?, ?, ?, 1)""",
+                (person_id, note_id, f.category, f.value, f.sentiment, f.confidence),
+            )
+            row = conn.execute("SELECT * FROM fact WHERE id = ?", (cur.lastrowid,)).fetchone()
+            saved.append(_row_to_fact(row))
+        conn.commit()
+        return saved
+    finally:
+        conn.close()
+
+
+def list_facts(person_id: int) -> list[FactOut]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM fact WHERE person_id = ? AND confirmed = 1 ORDER BY id DESC",
+            (person_id,),
+        ).fetchall()
+        return [_row_to_fact(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def delete_fact(fact_id: int) -> bool:
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM fact WHERE id = ?", (fact_id,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- Composite ----
+
+def get_person_detail(person_id: int) -> Optional[PersonDetail]:
+    person = get_person(person_id)
+    if person is None:
+        return None
+    return PersonDetail(
+        person=person,
+        key_dates=list_key_dates(person_id),
+        notes=list_notes(person_id),
+        facts=list_facts(person_id),
+    )

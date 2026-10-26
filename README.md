@@ -55,19 +55,53 @@ cd backend
 python -m scripts.smoke_test_nemotron
 ```
 
+### Seeding demo data
+
+Two rich demo profiles (Maya, Sam) with key dates, notes, and confirmed facts:
+
+```bash
+cd backend
+python -m scripts.seed_demo
+```
+
+### Running backend tests
+
+Routes are covered end-to-end with `pytest` + FastAPI's `TestClient`, each test against
+a throwaway SQLite file. Nemotron calls are mocked so the suite runs with no Token
+Factory credentials configured.
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Repo layout
 
 ```
 backend/
   app/
-    main.py       # FastAPI app + lifespan DB init
+    main.py       # FastAPI app + lifespan DB init + router wiring
     db.py         # SQLite connection + schema loader
     schema.sql    # person, key_date, note, fact, plan
-    nemotron.py   # tiered Nemotron client (Nano/Super/Ultra)
+    models.py     # Pydantic request/response schemas
+    crud.py       # SQLite CRUD helpers
+    nemotron.py   # tiered Nemotron client (Nano/Super/Ultra) + fact extraction
     config.py     # env-var loading
+    routers/      # people, notes, facts endpoints
   scripts/
     smoke_test_nemotron.py
-frontend/         # Next.js + Tailwind app
+    seed_demo.py
+  tests/          # pytest suite (CRUD, note capture, cascade deletes)
+frontend/
+  src/
+    app/
+      page.tsx              # people list + add person
+      people/[id]/page.tsx  # person profile (server wrapper, Suspense)
+    components/person/      # KeyDates, NoteCapture, NotesList, FactsList
+    lib/
+      api.ts         # typed fetch client for the backend
+      constants.ts   # fact category labels/colors
 ```
 
 ## License

@@ -6,7 +6,10 @@ smallest tier that can do it well (see spec: Nano for note extraction, Super
 for tool-calling/revisions, Ultra for cited plan generation).
 """
 
+import json
+
 from openai import OpenAI
+from pydantic import ValidationError
 
 from app.config import (
     NANO_MODEL_ID,
@@ -15,6 +18,7 @@ from app.config import (
     SUPER_MODEL_ID,
     ULTRA_MODEL_ID,
 )
+from app.models import FactExtraction
 
 TIER_MODELS = {
     "nano": NANO_MODEL_ID,
@@ -60,3 +64,64 @@ def call_super(prompt: str, **kwargs) -> str:
 
 def call_ultra(prompt: str, **kwargs) -> str:
     return call_tier("ultra", prompt, **kwargs)
+
+
+FACT_EXTRACTION_SYSTEM_PROMPT = """You extract structured facts about a person from a short note the \
+user wrote about them. Output strict JSON matching this shape and nothing else:
+
+{"facts": [{"category": "like|dislike|wishlist|dietary|constraint|past_experience", \
+"value": "short phrase", "sentiment": "positive|negative|neutral", "confidence": 0.0-1.0}]}
+
+Rules:
+- Only extract facts that are actually stated or strongly implied in the note. Do not invent facts.
+- Skip health, financial, or other sensitive categories entirely UNLESS the user wrote them as an \
+explicit constraint (e.g. "vegetarian", "no stairs", "allergic to peanuts") - those go in "dietary" \
+or "constraint".
+- "value" should be a short phrase, not a full sentence (e.g. "wants to try pottery", not \
+"She said she wants to try pottery sometime").
+- If the note contains no extractable facts, return {"facts": []}.
+- Output ONLY the JSON object. No markdown fences, no commentary.
+"""
+
+
+def _parse_fact_json(raw: str) -> FactExtraction:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    data = json.loads(text)
+    return FactExtraction.model_validate(data)
+
+
+def extract_facts(note_text: str) -> FactExtraction:
+    """Run a note through Nano and return validated fact proposals.
+
+    Tries once with JSON-mode response_format, falls back to plain completion
+    if the model rejects that param, and raises ValueError if neither attempt
+    yields valid JSON matching the schema - callers should surface that as a
+    502 rather than silently saving garbage.
+    """
+    client = _get_client()
+    model_id = TIER_MODELS["nano"]
+    if not model_id:
+        raise ValueError("No model ID configured for tier 'nano'. Set NANO_MODEL_ID in backend/.env.")
+
+    messages = [
+        {"role": "system", "content": FACT_EXTRACTION_SYSTEM_PROMPT},
+        {"role": "user", "content": note_text},
+    ]
+
+    last_error: Exception | None = None
+    for use_json_mode in (True, False):
+        try:
+            kwargs = {"response_format": {"type": "json_object"}} if use_json_mode else {}
+            response = client.chat.completions.create(
+                model=model_id, messages=messages, temperature=0, **kwargs
+            )
+            return _parse_fact_json(response.choices[0].message.content)
+        except Exception as exc:
+            last_error = exc
+
+    raise ValueError(f"Nano did not return valid fact JSON: {last_error}")
