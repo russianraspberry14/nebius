@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
 import { api, ApiError } from "@/lib/api";
+import UpcomingDates from "@/components/UpcomingDates";
 
 export default function Home() {
   const { data: people, error: loadError, mutate } = useSWR("people", () => api.listPeople());
@@ -99,6 +100,8 @@ export default function Home() {
           </button>
         </form>
       )}
+
+      <UpcomingDates />
 
       {people === undefined && !topError && (
         <p className="text-sm text-zinc-500">Loading...</p>

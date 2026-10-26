@@ -9,6 +9,7 @@ import KeyDates from "@/components/person/KeyDates";
 import NoteCapture from "@/components/person/NoteCapture";
 import NotesList from "@/components/person/NotesList";
 import FactsList from "@/components/person/FactsList";
+import PlansList from "@/components/person/PlansList";
 
 export default function PersonPageClient() {
   const params = useParams<{ id: string }>();
@@ -20,6 +21,7 @@ export default function PersonPageClient() {
     error: loadError,
     mutate,
   } = useSWR(`person-${personId}`, () => api.getPersonDetail(personId));
+  const { data: plans } = useSWR(`person-${personId}-plans`, () => api.listPersonPlans(personId));
   const load = () => mutate();
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -77,13 +79,21 @@ export default function PersonPageClient() {
             {person.home_city ? ` · ${person.home_city}` : ""}
           </p>
         </div>
-        <button
-          onClick={handleDeletePerson}
-          disabled={deleting}
-          className="text-sm text-zinc-400 hover:text-red-600 disabled:opacity-50"
-        >
-          Delete person
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/people/${personId}/plan`}
+            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900"
+          >
+            Plan an outing
+          </Link>
+          <button
+            onClick={handleDeletePerson}
+            disabled={deleting}
+            className="text-sm text-zinc-400 hover:text-red-600 disabled:opacity-50"
+          >
+            Delete person
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -94,6 +104,7 @@ export default function PersonPageClient() {
       <NoteCapture personId={personId} onChange={load} />
       <FactsList facts={facts} onChange={load} />
       <NotesList notes={notes} onChange={load} />
+      <PlansList plans={plans ?? []} />
     </div>
   );
 }

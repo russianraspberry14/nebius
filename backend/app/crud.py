@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from typing import Optional
 
@@ -11,6 +12,8 @@ from app.models import (
     PersonDetail,
     PersonOut,
     PersonUpdate,
+    PlanOut,
+    PlanStop,
 )
 
 
@@ -32,6 +35,13 @@ def _row_to_fact(row: sqlite3.Row) -> FactOut:
     d = dict(row)
     d["confirmed"] = bool(d["confirmed"])
     return FactOut(**d)
+
+
+def _row_to_plan(row: sqlite3.Row) -> PlanOut:
+    d = dict(row)
+    d["person_ids"] = json.loads(d["person_ids"])
+    d["stops"] = [PlanStop(**s) for s in json.loads(d["stops"])]
+    return PlanOut(**d)
 
 
 # ---- Person ----
@@ -218,6 +228,69 @@ def delete_fact(fact_id: int) -> bool:
         cur = conn.execute("DELETE FROM fact WHERE id = ?", (fact_id,))
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ---- Plan ----
+
+def create_plan(
+    person_ids: list[int],
+    occasion: str,
+    date: str,
+    area: Optional[str],
+    budget: Optional[str],
+    stops: list[PlanStop],
+    status: str = "saved",
+) -> PlanOut:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO plan (person_ids, occasion, date, budget, area, stops, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                json.dumps(person_ids),
+                occasion,
+                date,
+                budget,
+                area,
+                json.dumps([s.model_dump() for s in stops]),
+                status,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM plan WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return _row_to_plan(row)
+    finally:
+        conn.close()
+
+
+def list_plans(person_id: int) -> list[PlanOut]:
+    """Plans that include this person, newest first.
+
+    person_ids is stored as a JSON array, so membership is checked in Python
+    rather than relying on SQLite's JSON1 extension being available.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT * FROM plan ORDER BY created_at DESC").fetchall()
+        plans = [_row_to_plan(r) for r in rows]
+        return [p for p in plans if person_id in p.person_ids]
+    finally:
+        conn.close()
+
+
+# ---- Dashboard ----
+
+def list_all_key_dates_with_person() -> list[dict]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT key_date.id, key_date.label, key_date.date, key_date.recurring,
+                      person.id AS person_id, person.name AS person_name
+               FROM key_date JOIN person ON person.id = key_date.person_id"""
+        ).fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()
 

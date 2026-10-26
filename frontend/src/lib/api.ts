@@ -63,6 +63,52 @@ export interface PersonDetail {
   facts: Fact[];
 }
 
+export interface PlanStop {
+  name: string;
+  time: string | null;
+  url: string | null;
+  cost_estimate: string | null;
+  cited_fact_ids: number[];
+  why: string | null;
+}
+
+export interface PlanOption {
+  title: string;
+  stops: PlanStop[];
+}
+
+export interface Plan {
+  id: number;
+  person_ids: number[];
+  occasion: string;
+  date: string;
+  budget: string | null;
+  area: string | null;
+  stops: PlanStop[];
+  status: string;
+  created_at: string;
+}
+
+export interface GeneratePlanRequest {
+  person_ids: number[];
+  occasion: string;
+  date: string;
+  area: string;
+  budget?: string;
+  duration?: string;
+  keywords?: string;
+}
+
+export interface UpcomingDate {
+  person_id: number;
+  person_name: string;
+  key_date_id: number;
+  label: string;
+  date: string;
+  days_until: number;
+  recurring: boolean;
+}
+
 class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -128,6 +174,25 @@ export const api = {
     }),
 
   deleteFact: (factId: number) => request<void>(`/facts/${factId}`, { method: "DELETE" }),
+
+  generatePlan: (data: GeneratePlanRequest) =>
+    request<{ options: PlanOption[] }>("/plans/generate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  savePlan: (data: {
+    person_ids: number[];
+    occasion: string;
+    date: string;
+    area?: string;
+    budget?: string;
+    stops: PlanStop[];
+  }) => request<Plan>("/plans", { method: "POST", body: JSON.stringify(data) }),
+
+  listPersonPlans: (personId: number) => request<Plan[]>(`/people/${personId}/plans`),
+
+  getUpcomingDates: () => request<UpcomingDate[]>("/dashboard/upcoming-dates"),
 };
 
 export { ApiError };

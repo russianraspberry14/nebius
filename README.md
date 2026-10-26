@@ -54,6 +54,18 @@ key but the public instance is rate-limited and occasionally times out under loa
 set `GOOGLE_PLACES_API_KEY` for a reliable demo. Events have no keyless option; set
 `TICKETMASTER_API_KEY` or `SEATGEEK_CLIENT_ID`.
 
+### Planning flow
+
+`POST /plans/generate` runs Super's tool search, then Ultra drafts 2-3 cited plan
+options grounded against the person's confirmed facts and Super's candidates:
+a stop's `cited_fact_ids` are filtered to real fact ids and its `url` is dropped
+unless it matches a url the tools actually returned, so Ultra can't slip in an
+invented citation or venue. `POST /plans` saves the option the user picks to
+history; past stop names are fed back into the next generation as "avoid
+repeating these." `GET /dashboard/upcoming-dates` is pure date math (no model
+call) - each person's key dates, rolled forward to their next occurrence and
+sorted by days away.
+
 ### Frontend
 
 ```bash
@@ -106,19 +118,25 @@ backend/
     nemotron.py   # tiered Nemotron client (Nano/Super/Ultra) + fact extraction
     json_utils.py # shared LLM JSON-response parsing
     tool_loop.py  # Super's tool-calling loop (places/events/weather/geocode)
+    planner.py    # Ultra plan drafting + citation/url grounding
+    dates.py      # pure date math (next occurrence, days until)
+    dashboard.py  # upcoming-dates assembly
     config.py     # env-var loading
     tools/        # geocode, weather, places, events + 24h SQLite cache
-    routers/      # people, notes, facts, planning endpoints
+    routers/      # people, notes, facts, planning, plans, dashboard endpoints
   scripts/
     smoke_test_nemotron.py
     seed_demo.py
-  tests/          # pytest suite (CRUD, note capture, cascade deletes)
+  tests/          # pytest suite (CRUD, capture flow, tools, tool loop, planner, dashboard)
 frontend/
   src/
     app/
-      page.tsx              # people list + add person
-      people/[id]/page.tsx  # person profile (server wrapper, Suspense)
-    components/person/      # KeyDates, NoteCapture, NotesList, FactsList
+      page.tsx                    # people list + add person + upcoming dates
+      people/[id]/page.tsx        # person profile (server wrapper, Suspense)
+      people/[id]/plan/page.tsx   # plan-an-outing flow (server wrapper, Suspense)
+    components/
+      UpcomingDates.tsx
+      person/   # KeyDates, NoteCapture, NotesList, FactsList, PlansList, PlanPageClient
     lib/
       api.ts         # typed fetch client for the backend
       constants.ts   # fact category labels/colors

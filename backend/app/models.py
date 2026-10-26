@@ -149,3 +149,66 @@ class CandidateSearchResult(BaseModel):
     places: list[PlaceCandidate] = []
     events: list[EventCandidate] = []
     weather: Optional[WeatherInfo] = None
+
+
+# ---- Plan (Ultra) ----
+
+class PlanStop(BaseModel):
+    name: str
+    time: Optional[str] = None
+    url: Optional[str] = None
+    cost_estimate: Optional[str] = None
+    cited_fact_ids: list[int] = []
+    why: Optional[str] = None
+
+
+class PlanOption(BaseModel):
+    title: str
+    stops: list[PlanStop]
+
+
+class PlanGenerateRequest(BaseModel):
+    person_ids: list[int] = Field(min_length=1)
+    occasion: str
+    date: str
+    area: str
+    budget: Optional[str] = None
+    duration: Optional[str] = None
+    keywords: Optional[str] = ""
+
+
+class PlanGenerateResult(BaseModel):
+    options: list[PlanOption]
+
+
+class PlanSaveRequest(BaseModel):
+    person_ids: list[int] = Field(min_length=1)
+    occasion: str
+    date: str
+    area: Optional[str] = None
+    budget: Optional[str] = None
+    stops: list[PlanStop]
+
+
+class PlanOut(BaseModel):
+    id: int
+    person_ids: list[int]
+    occasion: str
+    date: str
+    budget: Optional[str]
+    area: Optional[str]
+    stops: list[PlanStop]
+    status: str
+    created_at: str
+
+
+# ---- Dashboard ----
+
+class UpcomingDate(BaseModel):
+    person_id: int
+    person_name: str
+    key_date_id: int
+    label: str
+    date: str  # this year's/next occurrence, ISO
+    days_until: int
+    recurring: bool
