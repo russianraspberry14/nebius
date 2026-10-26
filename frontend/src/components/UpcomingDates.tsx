@@ -30,12 +30,21 @@ export default function UpcomingDates() {
                   ? "is tomorrow"
                   : `in ${d.days_until} days`}
             </p>
-            <Link
-              href={`/people/${d.person_id}/plan`}
-              className="shrink-0 rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
-            >
-              Plan this now
-            </Link>
+            {d.draft_plan_id ? (
+              <Link
+                href={`/people/${d.person_id}`}
+                className="shrink-0 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:border-emerald-500 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+              >
+                Draft ready
+              </Link>
+            ) : (
+              <Link
+                href={`/people/${d.person_id}/plan`}
+                className="shrink-0 rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
+              >
+                Plan this now
+              </Link>
+            )}
           </li>
         ))}
       </ul>

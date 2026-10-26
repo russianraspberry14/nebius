@@ -75,6 +75,70 @@ def test_save_and_list_plan(client):
     assert len(res.json()) == 1
 
 
+def test_revise_stop_returns_grounded_replacement(client, monkeypatch):
+    person = _make_person(client)
+
+    monkeypatch.setattr(
+        "app.routers.plans.run_candidate_search",
+        lambda **kwargs: CandidateSearchResult(),
+    )
+    monkeypatch.setattr(
+        "app.routers.plans.revise_stop",
+        lambda **kwargs: {"name": "Cheap Eats", "cited_fact_ids": []},
+    )
+
+    res = client.post(
+        "/plans/revise-stop",
+        json={
+            "person_ids": [person["id"]],
+            "occasion": "birthday",
+            "date": "2026-11-12",
+            "area": "Austin",
+            "stops": [
+                {"name": "Fancy Bistro", "cited_fact_ids": []},
+                {"name": "Clayworks", "cited_fact_ids": []},
+            ],
+            "stop_index": 0,
+            "instruction": "swap dinner for something cheaper",
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["name"] == "Cheap Eats"
+
+
+def test_revise_stop_out_of_range_index_400s(client):
+    person = _make_person(client)
+    res = client.post(
+        "/plans/revise-stop",
+        json={
+            "person_ids": [person["id"]],
+            "occasion": "birthday",
+            "date": "2026-11-12",
+            "area": "Austin",
+            "stops": [{"name": "Only Stop", "cited_fact_ids": []}],
+            "stop_index": 5,
+            "instruction": "anything",
+        },
+    )
+    assert res.status_code == 400
+
+
+def test_revise_stop_404s_for_unknown_person(client):
+    res = client.post(
+        "/plans/revise-stop",
+        json={
+            "person_ids": [999],
+            "occasion": "birthday",
+            "date": "2026-11-12",
+            "area": "Austin",
+            "stops": [{"name": "X", "cited_fact_ids": []}],
+            "stop_index": 0,
+            "instruction": "anything",
+        },
+    )
+    assert res.status_code == 404
+
+
 def test_save_plan_404s_for_unknown_person(client):
     res = client.post(
         "/plans",

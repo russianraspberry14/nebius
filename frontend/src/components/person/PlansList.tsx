@@ -15,8 +15,13 @@ export default function PlansList({ plans }: { plans: Plan[] }) {
           {plans.map((plan) => (
             <li key={plan.id} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
               <div className="flex items-baseline justify-between">
-                <p className="font-medium capitalize text-zinc-900 dark:text-zinc-50">
+                <p className="flex items-center gap-2 font-medium capitalize text-zinc-900 dark:text-zinc-50">
                   {plan.occasion}
+                  {plan.status === "draft" && (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-normal normal-case text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      draft
+                    </span>
+                  )}
                 </p>
                 <p className="text-sm text-zinc-500">{plan.date}</p>
               </div>

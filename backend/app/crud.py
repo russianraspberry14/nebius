@@ -307,3 +307,29 @@ def get_person_detail(person_id: int) -> Optional[PersonDetail]:
         notes=list_notes(person_id),
         facts=list_facts(person_id),
     )
+
+
+def gather_people_facts_and_history(person_ids: list[int]) -> tuple[dict[str, list[FactOut]], list[str]]:
+    """Shared context for generating a plan, revising a stop, and the pre-draft job.
+
+    Returns (confirmed facts per person name, past stop names across their
+    saved/drafted plans - the "avoid repeats" list). Raises ValueError for an
+    unknown person id so callers can turn that into a 404.
+    """
+    people_facts: dict[str, list[FactOut]] = {}
+    for person_id in person_ids:
+        person = get_person(person_id)
+        if person is None:
+            raise ValueError(f"Person {person_id} not found")
+        people_facts[person.name] = list_facts(person_id)
+
+    past_stop_names: list[str] = []
+    seen = set()
+    for person_id in person_ids:
+        for plan in list_plans(person_id):
+            for stop in plan.stops:
+                if stop.name not in seen:
+                    seen.add(stop.name)
+                    past_stop_names.append(stop.name)
+
+    return people_facts, past_stop_names

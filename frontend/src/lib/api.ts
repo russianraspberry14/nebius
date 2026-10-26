@@ -107,6 +107,18 @@ export interface UpcomingDate {
   date: string;
   days_until: number;
   recurring: boolean;
+  draft_plan_id: number | null;
+}
+
+export interface ReviseStopRequest {
+  person_ids: number[];
+  occasion: string;
+  date: string;
+  area: string;
+  stops: PlanStop[];
+  stop_index: number;
+  instruction: string;
+  budget?: string;
 }
 
 class ApiError extends Error {
@@ -193,6 +205,9 @@ export const api = {
   listPersonPlans: (personId: number) => request<Plan[]>(`/people/${personId}/plans`),
 
   getUpcomingDates: () => request<UpcomingDate[]>("/dashboard/upcoming-dates"),
+
+  reviseStop: (data: ReviseStopRequest) =>
+    request<PlanStop>("/plans/revise-stop", { method: "POST", body: JSON.stringify(data) }),
 };
 
 export { ApiError };

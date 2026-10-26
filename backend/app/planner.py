@@ -9,9 +9,16 @@ citations... validate before rendering") rather than trusting Ultra's output
 as-is.
 """
 
-from app.config import ULTRA_MODEL_ID
+from app.config import SUPER_MODEL_ID, ULTRA_MODEL_ID
 from app.json_utils import parse_structured_json
-from app.models import CandidateSearchResult, FactOut, PlanGenerateResult, PlanOption
+from app.models import (
+    CandidateSearchResult,
+    FactOut,
+    PlanGenerateResult,
+    PlanOption,
+    PlanStop,
+    StopReviseResult,
+)
 from app.nemotron import get_client
 
 PLAN_SYSTEM_PROMPT = """You draft an outing or birthday plan for the given person/people, using \
@@ -61,12 +68,17 @@ def _format_candidates(candidates: CandidateSearchResult) -> str:
     return "\n".join(lines) if lines else "(no candidates found)"
 
 
+def _ground_stop(stop: PlanStop, known_fact_ids: set[int], known_urls: set[str]) -> PlanStop:
+    stop.cited_fact_ids = [fid for fid in stop.cited_fact_ids if fid in known_fact_ids]
+    if stop.url and stop.url not in known_urls:
+        stop.url = None
+    return stop
+
+
 def _ground_plan(result: PlanGenerateResult, known_fact_ids: set[int], known_urls: set[str]) -> PlanGenerateResult:
     for option in result.options:
         for stop in option.stops:
-            stop.cited_fact_ids = [fid for fid in stop.cited_fact_ids if fid in known_fact_ids]
-            if stop.url and stop.url not in known_urls:
-                stop.url = None
+            _ground_stop(stop, known_fact_ids, known_urls)
     return result
 
 
@@ -112,3 +124,69 @@ def generate_plan_options(
     )
     result = parse_structured_json(response.choices[0].message.content, PlanGenerateResult)
     return _ground_plan(result, known_fact_ids, known_urls)
+
+
+STOP_REVISION_SYSTEM_PROMPT = """You revise exactly ONE stop in an existing outing plan, based on a \
+user instruction (e.g. "swap dinner for something cheaper"). Use ONLY the fresh candidates you're \
+given and ONLY the facts you're given - the same grounding rules as drafting a plan from scratch:
+
+- "cited_fact_ids" must reference real fact ids from the list you were given, and only facts that \
+actually motivated this stop.
+- "name" and "url" must come from the candidate places/events list for a specific venue; a generic \
+activity with no url is fine if nothing fits, but never invent a business name.
+- Do not repeat a stop name from "other stops in this plan" or "past outings".
+- The other stops are shown only for context - you are replacing ONE stop, not redesigning the plan.
+
+Respond with ONLY a JSON object, no markdown fences, matching:
+{"stop": {"name": str, "time": str|null, "url": str|null, "cost_estimate": str|null, \
+"cited_fact_ids": [int], "why": str|null}}
+"""
+
+
+def revise_stop(
+    *,
+    people_facts: dict[str, list[FactOut]],
+    candidates: CandidateSearchResult,
+    other_stops: list[PlanStop],
+    past_stop_names: list[str],
+    stop_to_revise: PlanStop,
+    instruction: str,
+    occasion: str,
+    date: str,
+    area: str,
+    budget: str | None = None,
+) -> PlanStop:
+    client = get_client()
+    if not SUPER_MODEL_ID:
+        raise ValueError("No model ID configured for tier 'super'. Set SUPER_MODEL_ID in backend/.env.")
+
+    all_facts = [f for facts in people_facts.values() for f in facts]
+    known_fact_ids = {f.id for f in all_facts}
+    known_urls = {p.url for p in candidates.places if p.url} | {e.url for e in candidates.events if e.url}
+
+    people_block = "\n\n".join(
+        f"{name}:\n{_format_facts(facts)}" for name, facts in people_facts.items()
+    )
+    other_names = ", ".join(s.name for s in other_stops) or "(none)"
+    past_block = ", ".join(past_stop_names) if past_stop_names else "(none yet)"
+
+    user_context = (
+        f"Occasion: {occasion}\nDate: {date}\nArea: {area}\nBudget: {budget or 'unspecified'}\n\n"
+        f"People and their confirmed facts:\n{people_block}\n\n"
+        f"Stop being revised: {stop_to_revise.model_dump_json()}\n"
+        f"User instruction: {instruction}\n\n"
+        f"Other stops in this plan (context only, don't duplicate): {other_names}\n"
+        f"Past outings already used (avoid repeating): {past_block}\n\n"
+        f"Fresh candidates for the revision:\n{_format_candidates(candidates)}"
+    )
+
+    response = client.chat.completions.create(
+        model=SUPER_MODEL_ID,
+        messages=[
+            {"role": "system", "content": STOP_REVISION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_context},
+        ],
+        temperature=0.4,
+    )
+    result = parse_structured_json(response.choices[0].message.content, StopReviseResult)
+    return _ground_stop(result.stop, known_fact_ids, known_urls)

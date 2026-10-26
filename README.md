@@ -66,6 +66,25 @@ repeating these." `GET /dashboard/upcoming-dates` is pure date math (no model
 call) - each person's key dates, rolled forward to their next occurrence and
 sorted by days away.
 
+`POST /plans/revise-stop` (P1) lets the user say "swap dinner for something
+cheaper" from the plan view: Super re-searches with the instruction as the
+keyword and returns a replacement for just that one stop, grounded the same
+way as full generation. The frontend swaps it into the option in place.
+
+### Daily pre-draft job (P1)
+
+`app/predraft.py` is the same generation pipeline run automatically: for every
+upcoming key date within 21 days that doesn't already have a plan, it drafts
+one with Ultra and saves it with `status="draft"`. The dashboard then shows
+"Draft ready" instead of "Plan this now" for that date. Locally:
+
+```bash
+cd backend
+python -m scripts.predraft_plans
+```
+
+In production this is the entrypoint for a daily Nebius Serverless Job (cron).
+
 ### Frontend
 
 ```bash
@@ -86,7 +105,8 @@ python -m scripts.smoke_test_nemotron
 
 ### Seeding demo data
 
-Two rich demo profiles (Maya, Sam) with key dates, notes, and confirmed facts:
+Two rich demo profiles (Maya, Sam) with key dates, notes, confirmed facts, and
+one saved plan already in history:
 
 ```bash
 cd backend
@@ -118,16 +138,18 @@ backend/
     nemotron.py   # tiered Nemotron client (Nano/Super/Ultra) + fact extraction
     json_utils.py # shared LLM JSON-response parsing
     tool_loop.py  # Super's tool-calling loop (places/events/weather/geocode)
-    planner.py    # Ultra plan drafting + citation/url grounding
+    planner.py    # Ultra plan drafting + revise-one-stop + citation/url grounding
     dates.py      # pure date math (next occurrence, days until)
-    dashboard.py  # upcoming-dates assembly
+    dashboard.py  # upcoming-dates assembly (+ draft_plan_id lookup)
+    predraft.py   # daily pre-draft job (flow D)
     config.py     # env-var loading
     tools/        # geocode, weather, places, events + 24h SQLite cache
     routers/      # people, notes, facts, planning, plans, dashboard endpoints
   scripts/
     smoke_test_nemotron.py
     seed_demo.py
-  tests/          # pytest suite (CRUD, capture flow, tools, tool loop, planner, dashboard)
+    predraft_plans.py
+  tests/          # pytest suite (CRUD, capture flow, tools, tool loop, planner, dashboard, predraft)
 frontend/
   src/
     app/
@@ -135,7 +157,7 @@ frontend/
       people/[id]/page.tsx        # person profile (server wrapper, Suspense)
       people/[id]/plan/page.tsx   # plan-an-outing flow (server wrapper, Suspense)
     components/
-      UpcomingDates.tsx
+      UpcomingDates.tsx            # "Plan this now" / "Draft ready"
       person/   # KeyDates, NoteCapture, NotesList, FactsList, PlansList, PlanPageClient
     lib/
       api.ts         # typed fetch client for the backend

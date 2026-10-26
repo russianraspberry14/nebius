@@ -202,6 +202,22 @@ class PlanOut(BaseModel):
     created_at: str
 
 
+class StopReviseRequest(BaseModel):
+    person_ids: list[int] = Field(min_length=1)
+    occasion: str
+    date: str
+    area: str
+    stops: list[PlanStop] = Field(min_length=1)
+    stop_index: int = Field(ge=0)
+    instruction: str = Field(min_length=1)
+    budget: Optional[str] = None
+
+
+class StopReviseResult(BaseModel):
+    """Super's raw structured response for one revised stop."""
+    stop: PlanStop
+
+
 # ---- Dashboard ----
 
 class UpcomingDate(BaseModel):
@@ -212,3 +228,4 @@ class UpcomingDate(BaseModel):
     date: str  # this year's/next occurrence, ISO
     days_until: int
     recurring: bool
+    draft_plan_id: Optional[int] = None

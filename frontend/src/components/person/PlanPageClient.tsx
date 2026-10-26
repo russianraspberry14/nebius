@@ -29,18 +29,71 @@ function CitedFacts({ factIds, facts }: { factIds: number[]; facts: Fact[] }) {
   );
 }
 
+function ReviseStopForm({
+  onSubmit,
+  revising,
+}: {
+  onSubmit: (instruction: string) => void;
+  revising: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState("");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+      >
+        Swap this for something else
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <input
+        className="min-w-48 flex-1 rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+        placeholder="e.g. something cheaper, somewhere quieter"
+        value={instruction}
+        onChange={(e) => setInstruction(e.target.value)}
+        disabled={revising}
+      />
+      <button
+        onClick={() => {
+          if (!instruction.trim()) return;
+          onSubmit(instruction.trim());
+          setOpen(false);
+          setInstruction("");
+        }}
+        disabled={revising || !instruction.trim()}
+        className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+      >
+        {revising ? "Revising..." : "Go"}
+      </button>
+      <button onClick={() => setOpen(false)} className="text-xs text-zinc-400" disabled={revising}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function OptionCard({
   option,
   facts,
   onSave,
   saving,
   saved,
+  onReviseStop,
+  revisingStopIndex,
 }: {
   option: PlanOption;
   facts: Fact[];
   onSave: () => void;
   saving: boolean;
   saved: boolean;
+  onReviseStop: (stopIndex: number, instruction: string) => void;
+  revisingStopIndex: number | null;
 }) {
   return (
     <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
@@ -77,6 +130,12 @@ function OptionCard({
             </div>
             {stop.why && <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">{stop.why}</p>}
             <CitedFacts factIds={stop.cited_fact_ids} facts={facts} />
+            {!saved && (
+              <ReviseStopForm
+                onSubmit={(instruction) => onReviseStop(i, instruction)}
+                revising={revisingStopIndex === i}
+              />
+            )}
           </li>
         ))}
       </ul>
@@ -101,6 +160,7 @@ export default function PlanPageClient() {
   const [options, setOptions] = useState<PlanOption[] | null>(null);
   const [savedTitles, setSavedTitles] = useState<Set<string>>(new Set());
   const [savingTitle, setSavingTitle] = useState<string | null>(null);
+  const [revising, setRevising] = useState<{ optionTitle: string; stopIndex: number } | null>(null);
   // The area/date actually used for the options currently shown, so Save
   // persists what was generated even if the form fields change afterward.
   const [generatedFor, setGeneratedFor] = useState<{ area: string; date: string } | null>(null);
@@ -148,6 +208,39 @@ export default function PlanPageClient() {
       setError(err instanceof ApiError ? err.message : "Couldn't save that plan.");
     } finally {
       setSavingTitle(null);
+    }
+  }
+
+  async function handleReviseStop(optionTitle: string, stopIndex: number, instruction: string) {
+    if (!generatedFor || !options) return;
+    const optionIndex = options.findIndex((o) => o.title === optionTitle);
+    if (optionIndex === -1) return;
+
+    setRevising({ optionTitle, stopIndex });
+    setError(null);
+    try {
+      const newStop = await api.reviseStop({
+        person_ids: [personId],
+        occasion,
+        date: generatedFor.date,
+        area: generatedFor.area,
+        stops: options[optionIndex].stops,
+        stop_index: stopIndex,
+        instruction,
+        budget: budget.trim() || undefined,
+      });
+      setOptions((prev) => {
+        if (!prev) return prev;
+        const updated = [...prev];
+        const stops = [...updated[optionIndex].stops];
+        stops[stopIndex] = newStop;
+        updated[optionIndex] = { ...updated[optionIndex], stops };
+        return updated;
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't revise that stop.");
+    } finally {
+      setRevising(null);
     }
   }
 
@@ -242,6 +335,12 @@ export default function PlanPageClient() {
               onSave={() => handleSave(option)}
               saving={savingTitle === option.title}
               saved={savedTitles.has(option.title)}
+              onReviseStop={(stopIndex, instruction) =>
+                handleReviseStop(option.title, stopIndex, instruction)
+              }
+              revisingStopIndex={
+                revising?.optionTitle === option.title ? revising.stopIndex : null
+              }
             />
           ))}
         </div>
