@@ -13,3 +13,14 @@ def client(tmp_path, monkeypatch):
 
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture()
+def tool_db(tmp_path, monkeypatch):
+    """A fresh, throwaway SQLite file with the schema loaded, no HTTP app involved.
+
+    For tests that exercise the tool cache / tool functions directly.
+    """
+    monkeypatch.setattr(db_module, "DB_PATH", tmp_path / "tools-test.db")
+    db_module.init_db()
+    yield

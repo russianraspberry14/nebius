@@ -37,6 +37,23 @@ uvicorn app.main:app --reload
 Confirm the Nano and Ultra model IDs in the Token Factory console — the spec only
 pins Super's ID (`nvidia/nemotron-3-super120b-a12b`).
 
+### External tools
+
+`search_places`, `search_events`, `get_weather`, `geocode` back the Super tool-calling
+loop that gathers outing candidates. Every response is cached in SQLite for 24h.
+
+| Tool | Primary | Fallback | Key needed? |
+|---|---|---|---|
+| `geocode` | Open-Meteo geocoding | — | No |
+| `get_weather` | Open-Meteo forecast | — | No |
+| `search_places` | Google Places (New) | OpenStreetMap Overpass | Only for Google |
+| `search_events` | Ticketmaster Discovery | SeatGeek | Yes, one of the two |
+
+Geocode and weather work out of the box. For places, the Overpass fallback needs no
+key but the public instance is rate-limited and occasionally times out under load —
+set `GOOGLE_PLACES_API_KEY` for a reliable demo. Events have no keyless option; set
+`TICKETMASTER_API_KEY` or `SEATGEEK_CLIENT_ID`.
+
 ### Frontend
 
 ```bash
@@ -87,8 +104,11 @@ backend/
     models.py     # Pydantic request/response schemas
     crud.py       # SQLite CRUD helpers
     nemotron.py   # tiered Nemotron client (Nano/Super/Ultra) + fact extraction
+    json_utils.py # shared LLM JSON-response parsing
+    tool_loop.py  # Super's tool-calling loop (places/events/weather/geocode)
     config.py     # env-var loading
-    routers/      # people, notes, facts endpoints
+    tools/        # geocode, weather, places, events + 24h SQLite cache
+    routers/      # people, notes, facts, planning endpoints
   scripts/
     smoke_test_nemotron.py
     seed_demo.py

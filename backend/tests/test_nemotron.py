@@ -41,7 +41,7 @@ def test_extract_facts_happy_path(monkeypatch):
             return _fake_response('{"facts": [{"category": "like", "value": "hiking", "sentiment": "positive", "confidence": 0.7}]}')
 
     fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions()))
-    monkeypatch.setattr(nemotron, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(nemotron, "get_client", lambda: fake_client)
 
     result = nemotron.extract_facts("likes hiking")
     assert len(result.facts) == 1
@@ -63,7 +63,7 @@ def test_extract_facts_falls_back_when_json_mode_rejected(monkeypatch):
             return _fake_response('{"facts": []}')
 
     fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions()))
-    monkeypatch.setattr(nemotron, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(nemotron, "get_client", lambda: fake_client)
 
     result = nemotron.extract_facts("nothing extractable here")
     assert result.facts == []
@@ -78,7 +78,7 @@ def test_extract_facts_raises_value_error_when_both_attempts_fail(monkeypatch):
             return _fake_response("not valid json")
 
     fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions()))
-    monkeypatch.setattr(nemotron, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(nemotron, "get_client", lambda: fake_client)
 
     with pytest.raises(ValueError):
         nemotron.extract_facts("some note")
@@ -86,6 +86,6 @@ def test_extract_facts_raises_value_error_when_both_attempts_fail(monkeypatch):
 
 def test_extract_facts_without_model_id_configured(monkeypatch):
     monkeypatch.setitem(nemotron.TIER_MODELS, "nano", "")
-    monkeypatch.setattr(nemotron, "_get_client", lambda: SimpleNamespace())
+    monkeypatch.setattr(nemotron, "get_client", lambda: SimpleNamespace())
     with pytest.raises(ValueError, match="No model ID configured"):
         nemotron.extract_facts("some note")

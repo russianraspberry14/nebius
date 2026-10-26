@@ -107,3 +107,45 @@ class PersonDetail(BaseModel):
     key_dates: list[KeyDateOut]
     notes: list[NoteOut]
     facts: list[FactOut]
+
+
+# ---- Candidate search (Super tool-calling loop) ----
+
+class PlaceCandidate(BaseModel):
+    name: str
+    address: Optional[str] = None
+    rating: Optional[float] = None
+    price_level: Optional[str] = None
+    url: Optional[str] = None
+    source: Optional[str] = None
+
+
+class EventCandidate(BaseModel):
+    name: str
+    venue: Optional[str] = None
+    date: Optional[str] = None
+    url: Optional[str] = None
+    source: Optional[str] = None
+
+
+class WeatherInfo(BaseModel):
+    date: str
+    temp_high_c: Optional[float] = None
+    temp_low_c: Optional[float] = None
+    precipitation_chance: Optional[float] = None
+    weather_code: Optional[int] = None
+
+
+class CandidateSearchRequest(BaseModel):
+    occasion: str
+    date: str  # ISO date, e.g. "2026-11-12"
+    area: str
+    budget: Optional[str] = None
+    duration: Optional[str] = None
+    keywords: Optional[str] = ""
+
+
+class CandidateSearchResult(BaseModel):
+    places: list[PlaceCandidate] = []
+    events: list[EventCandidate] = []
+    weather: Optional[WeatherInfo] = None

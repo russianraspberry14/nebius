@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS plan (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 24h cache for external tool calls (places/events/weather/geocode), keyed by
+-- a hash of the function name + its arguments.
+CREATE TABLE IF NOT EXISTS tool_cache (
+    key         TEXT PRIMARY KEY,
+    response    TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_key_date_person ON key_date(person_id);
 CREATE INDEX IF NOT EXISTS idx_note_person ON note(person_id);
 CREATE INDEX IF NOT EXISTS idx_fact_person ON fact(person_id);

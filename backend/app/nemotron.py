@@ -6,10 +6,7 @@ smallest tier that can do it well (see spec: Nano for note extraction, Super
 for tool-calling/revisions, Ultra for cited plan generation).
 """
 
-import json
-
 from openai import OpenAI
-from pydantic import ValidationError
 
 from app.config import (
     NANO_MODEL_ID,
@@ -18,6 +15,7 @@ from app.config import (
     SUPER_MODEL_ID,
     ULTRA_MODEL_ID,
 )
+from app.json_utils import parse_structured_json
 from app.models import FactExtraction
 
 TIER_MODELS = {
@@ -29,7 +27,8 @@ TIER_MODELS = {
 _client: OpenAI | None = None
 
 
-def _get_client() -> OpenAI:
+def get_client() -> OpenAI:
+    """Shared Token Factory client - also used by the Super tool-calling loop."""
     global _client
     if _client is None:
         if not NEBIUS_API_KEY:
@@ -45,7 +44,7 @@ def call_tier(tier: str, prompt: str, **kwargs) -> str:
         raise ValueError(
             f"No model ID configured for tier '{tier}'. Set it in backend/.env."
         )
-    client = _get_client()
+    client = get_client()
     response = client.chat.completions.create(
         model=model_id,
         messages=[{"role": "user", "content": prompt}],
@@ -85,14 +84,7 @@ or "constraint".
 
 
 def _parse_fact_json(raw: str) -> FactExtraction:
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-    data = json.loads(text)
-    return FactExtraction.model_validate(data)
+    return parse_structured_json(raw, FactExtraction)
 
 
 def extract_facts(note_text: str) -> FactExtraction:
@@ -103,7 +95,7 @@ def extract_facts(note_text: str) -> FactExtraction:
     yields valid JSON matching the schema - callers should surface that as a
     502 rather than silently saving garbage.
     """
-    client = _get_client()
+    client = get_client()
     model_id = TIER_MODELS["nano"]
     if not model_id:
         raise ValueError("No model ID configured for tier 'nano'. Set NANO_MODEL_ID in backend/.env.")
