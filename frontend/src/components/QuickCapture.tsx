@@ -83,7 +83,7 @@ export default function QuickCapture() {
   return (
     <section className="mb-8">
       <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
-        Quick capture
+        Add information for someone / plan something good!
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
         <div className="relative">
