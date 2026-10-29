@@ -28,7 +28,11 @@ def capture_note(person_id: int, data: NoteCreate, user_id: int = Depends(requir
         extraction = extract_facts(data.text, today_iso=Date.today().isoformat())
     except ValueError as exc:
         # Note is already saved; the user can still confirm facts manually later.
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        print(f"[notes.capture] Nano extraction failed: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail="Couldn't make sense of that automatically - it's saved, you can add facts and dates by hand below.",
+        ) from exc
 
     return NoteCaptureResult(
         note=note, proposed_facts=extraction.facts, proposed_key_date=extraction.key_date

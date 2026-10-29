@@ -1,11 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import useSWR, { mutate } from "swr";
-import { api, ApiError, QuickCaptureResult } from "@/lib/api";
+import useSWR from "swr";
+import { api, ApiError, Person, QuickCaptureAmbiguous, QuickCaptureResult } from "@/lib/api";
 import { useSpeechRecognition } from "@/lib/useSpeechRecognition";
-import ProposedFacts from "@/components/ProposedFacts";
-import ProposedKeyDate from "@/components/ProposedKeyDate";
+import CaptureReview from "@/components/CaptureReview";
+import ThinkingIndicator from "@/components/ThinkingIndicator";
 
 function MicIcon({ className }: { className?: string }) {
   return (
@@ -25,17 +25,45 @@ function MicIcon({ className }: { className?: string }) {
   );
 }
 
+function isAmbiguous(detail: unknown): detail is QuickCaptureAmbiguous {
+  return (
+    typeof detail === "object" &&
+    detail !== null &&
+    "candidates" in detail &&
+    Array.isArray((detail as QuickCaptureAmbiguous).candidates)
+  );
+}
+
 export default function QuickCapture() {
-  const { data: people } = useSWR("people", () => api.listPeople());
+  const { data: people, mutate: mutatePeople } = useSWR("people", () => api.listPeople());
 
   const [text, setText] = useState("");
-  const [pendingText, setPendingText] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [result, setResult] = useState<QuickCaptureResult | null>(null);
-  const [factsDone, setFactsDone] = useState(false);
-  const [keyDateDone, setKeyDateDone] = useState(false);
+
+  // Ambiguous-person state: who it might be about, and the text waiting to
+  // be re-submitted once that's resolved.
+  const [pendingText, setPendingText] = useState<string | null>(null);
+  const [ambiguousMessage, setAmbiguousMessage] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<Person[]>([]);
+  const [showEveryone, setShowEveryone] = useState(false);
+  const [addingPerson, setAddingPerson] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newRelationship, setNewRelationship] = useState("");
+  const [addingError, setAddingError] = useState<string | null>(null);
+
+  function resetAmbiguous() {
+    setPendingText(null);
+    setAmbiguousMessage(null);
+    setCandidates([]);
+    setShowEveryone(false);
+    setAddingPerson(false);
+    setNewName("");
+    setNewRelationship("");
+    setAddingError(null);
+  }
 
   async function submit(noteText: string, personId?: number) {
     const trimmed = noteText.trim();
@@ -45,14 +73,14 @@ export default function QuickCapture() {
     try {
       const captured = await api.quickCapture(trimmed, personId);
       setText("");
-      setPendingText(null);
+      resetAmbiguous();
       setResult(captured);
-      setFactsDone(false);
-      setKeyDateDone(false);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 422) {
-        // Couldn't tell who it's about - keep the text and ask.
+      if (err instanceof ApiError && err.status === 422 && isAmbiguous(err.detail)) {
         setPendingText(trimmed);
+        setAmbiguousMessage(err.detail.message);
+        setCandidates(err.detail.candidates);
+        setShowEveryone(false);
         setText("");
       } else {
         setError(err instanceof ApiError ? err.message : "Couldn't capture that.");
@@ -67,6 +95,21 @@ export default function QuickCapture() {
     await submit(text);
   }
 
+  async function handleAddPerson() {
+    if (!newName.trim() || !newRelationship.trim() || !pendingText) return;
+    setAddingError(null);
+    try {
+      const person = await api.createPerson({
+        name: newName.trim(),
+        relationship: newRelationship.trim(),
+      });
+      await mutatePeople();
+      await submit(pendingText, person.id);
+    } catch (e) {
+      setAddingError(e instanceof ApiError ? e.message : "Couldn't add that person.");
+    }
+  }
+
   const {
     listening,
     interimText,
@@ -79,6 +122,8 @@ export default function QuickCapture() {
       submit(transcript);
     },
   });
+
+  const otherPeople = people?.filter((p) => !candidates.some((c) => c.id === p.id)) ?? [];
 
   return (
     <section className="mb-8">
@@ -119,24 +164,83 @@ export default function QuickCapture() {
         </button>
       </form>
 
+      {capturing && <ThinkingIndicator label="Reading that..." />}
       {voiceError && <p className="mt-2 text-sm text-rose">{voiceError}</p>}
       {error && <p className="mt-2 text-sm text-rose">{error}</p>}
 
       {pendingText && (
         <div className="rise-in mt-3 rounded-lg border border-amber/30 bg-amber-soft p-3">
-          <p className="mb-2 text-sm text-amber-ink">Who&rsquo;s this about?</p>
-          <div className="flex flex-wrap gap-2">
-            {people?.map((p) => (
+          <p className="mb-2 text-sm text-amber-ink">{ambiguousMessage}</p>
+
+          {candidates.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {candidates.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => submit(pendingText, p.id)}
+                  disabled={capturing}
+                  className="rounded-full border border-clay bg-paper px-3 py-1 text-sm text-ink transition-colors hover:bg-clay-soft disabled:opacity-50"
+                >
+                  {p.name}
+                </button>
+              ))}
+              {!showEveryone && otherPeople.length > 0 && (
+                <button
+                  onClick={() => setShowEveryone(true)}
+                  className="rounded-full px-3 py-1 text-sm text-ink-faint underline-offset-2 hover:underline"
+                >
+                  Not them?
+                </button>
+              )}
+            </div>
+          )}
+
+          {(candidates.length === 0 || showEveryone) && otherPeople.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {otherPeople.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => submit(pendingText, p.id)}
+                  disabled={capturing}
+                  className="rounded-full border border-border-strong bg-paper px-3 py-1 text-sm text-ink transition-colors hover:border-clay hover:text-clay disabled:opacity-50"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!addingPerson ? (
+            <button
+              onClick={() => setAddingPerson(true)}
+              className="text-sm font-medium text-amber-ink underline-offset-2 hover:underline"
+            >
+              + Someone new
+            </button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                className="min-w-28 flex-1 rounded border border-border bg-paper px-2 py-1 text-sm text-ink"
+                placeholder="Name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+              <input
+                className="min-w-28 flex-1 rounded border border-border bg-paper px-2 py-1 text-sm text-ink"
+                placeholder="Relationship"
+                value={newRelationship}
+                onChange={(e) => setNewRelationship(e.target.value)}
+              />
               <button
-                key={p.id}
-                onClick={() => submit(pendingText, p.id)}
-                disabled={capturing}
-                className="rounded-full border border-border-strong bg-paper px-3 py-1 text-sm text-ink transition-colors hover:border-clay hover:text-clay disabled:opacity-50"
+                onClick={handleAddPerson}
+                disabled={capturing || !newName.trim() || !newRelationship.trim()}
+                className="rounded-md bg-clay px-3 py-1 text-sm font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
               >
-                {p.name}
+                Add & save
               </button>
-            ))}
-          </div>
+            </div>
+          )}
+          {addingError && <p className="mt-1.5 text-xs text-rose">{addingError}</p>}
         </div>
       )}
 
@@ -148,23 +252,14 @@ export default function QuickCapture() {
         </div>
       )}
 
-      {result && !factsDone && (
-        <ProposedFacts
+      {result && (
+        <CaptureReview
+          key={result.note.id}
+          personId={result.person_id}
           noteId={result.note.id}
           initialFacts={result.proposed_facts}
-          onDone={() => setFactsDone(true)}
-        />
-      )}
-
-      {result?.proposed_key_date && !keyDateDone && (
-        <ProposedKeyDate
-          personId={result.person_id}
-          proposal={result.proposed_key_date}
-          onSaved={() => {
-            setKeyDateDone(true);
-            mutate("upcoming-dates");
-          }}
-          onDismiss={() => setKeyDateDone(true)}
+          initialKeyDate={result.proposed_key_date}
+          onDone={() => setResult(null)}
         />
       )}
     </section>

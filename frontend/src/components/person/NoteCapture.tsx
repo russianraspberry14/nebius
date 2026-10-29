@@ -3,8 +3,8 @@
 import { FormEvent, useState } from "react";
 import { api, ApiError, FactProposal, KeyDateProposal } from "@/lib/api";
 import { useSpeechRecognition } from "@/lib/useSpeechRecognition";
-import ProposedFacts from "@/components/ProposedFacts";
-import ProposedKeyDate from "@/components/ProposedKeyDate";
+import CaptureReview from "@/components/CaptureReview";
+import ThinkingIndicator from "@/components/ThinkingIndicator";
 
 function MicIcon({ className }: { className?: string }) {
   return (
@@ -52,15 +52,10 @@ export default function NoteCapture({
       setKeyDateProposal(result.proposed_key_date);
       onChange();
     } catch (err) {
-      // The note is saved server-side even if Nano extraction failed (e.g. no
-      // Token Factory key configured yet) - refresh so it shows up, and let
-      // the user know facts weren't auto-proposed this time.
+      // The note is saved server-side even if Nano extraction failed - the
+      // backend's message is already written for people, not debugging.
       setText("");
-      setWarning(
-        err instanceof ApiError
-          ? `Fact extraction didn't run: ${err.message}`
-          : "Fact extraction didn't run, but your note was saved."
-      );
+      setWarning(err instanceof ApiError ? err.message : "Your note was saved.");
       onChange();
     } finally {
       setCapturing(false);
@@ -134,30 +129,22 @@ export default function NoteCapture({
         </button>
       </form>
 
+      {capturing && <ThinkingIndicator label="Reading that note..." />}
       {voiceError && <p className="mt-2 text-sm text-rose">{voiceError}</p>}
       {warning && <p className="mt-2 text-sm text-amber">{warning}</p>}
 
       {draftNoteId !== null && (
-        <ProposedFacts
+        <CaptureReview
+          personId={personId}
           noteId={draftNoteId}
           initialFacts={proposedFacts}
+          initialKeyDate={keyDateProposal}
           onDone={() => {
             setDraftNoteId(null);
             setProposedFacts([]);
-            onChange();
-          }}
-        />
-      )}
-
-      {keyDateProposal && (
-        <ProposedKeyDate
-          personId={personId}
-          proposal={keyDateProposal}
-          onSaved={() => {
             setKeyDateProposal(null);
             onChange();
           }}
-          onDismiss={() => setKeyDateProposal(null)}
         />
       )}
     </section>

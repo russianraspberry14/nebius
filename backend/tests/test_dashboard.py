@@ -75,6 +75,24 @@ def test_quick_capture_ambiguous_without_a_name_asks_to_pick(client, monkeypatch
 
     res = client.post("/dashboard/capture", json={"text": "graduated on 8th November"})
     assert res.status_code == 422
+    detail = res.json()["detail"]
+    # No name recognized at all - no candidates, frontend falls back to the full list.
+    assert detail["candidates"] == []
+    assert "catch a name" in detail["message"].lower()
+
+
+def test_quick_capture_ambiguous_with_multiple_matches_lists_them(client, monkeypatch):
+    sam_r = _make_person(client, "Sam Rivera")
+    sam_p = _make_person(client, "Sam Patel")
+    monkeypatch.setattr(
+        "app.routers.dashboard.extract_facts", lambda text, **kwargs: FactExtraction(facts=[])
+    )
+
+    res = client.post("/dashboard/capture", json={"text": "Sam said hi"})
+    assert res.status_code == 422
+    detail = res.json()["detail"]
+    assert {c["id"] for c in detail["candidates"]} == {sam_r["id"], sam_p["id"]}
+    assert "more than one" in detail["message"].lower()
 
 
 def test_quick_capture_with_explicit_person_id_skips_matching(client, monkeypatch):

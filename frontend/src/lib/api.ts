@@ -147,11 +147,21 @@ export interface UpcomingPlan {
   status: string;
 }
 
+export interface QuickCaptureAmbiguous {
+  message: string;
+  candidates: Person[];
+}
+
 class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  // The raw `detail` from the response body, before it was flattened into
+  // `message` - a string for most errors, but a structured object for ones
+  // like QuickCaptureAmbiguous that the caller needs to parse further.
+  detail: unknown;
+  constructor(status: number, message: string, detail?: unknown) {
     super(message);
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -168,14 +178,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail: unknown = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      detail = body.detail ?? body;
     } catch {
       // ignore - keep statusText
     }
-    throw new ApiError(res.status, detail);
+    const message = typeof detail === "string" ? detail : JSON.stringify(detail);
+    throw new ApiError(res.status, message, detail);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

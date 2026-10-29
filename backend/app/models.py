@@ -152,6 +152,16 @@ class QuickCaptureResult(BaseModel):
     proposed_key_date: Optional[KeyDateProposal] = None
 
 
+class QuickCaptureAmbiguous(BaseModel):
+    """Returned (as a 422 body) when the text doesn't clearly name exactly
+    one of the user's people. "candidates" is only the people actually
+    matched by name - empty when no name was recognized at all - so the
+    frontend can explain *why* it's asking rather than just listing
+    everyone."""
+    message: str
+    candidates: list[PersonOut]
+
+
 class PersonDetail(BaseModel):
     person: PersonOut
     key_dates: list[KeyDateOut]

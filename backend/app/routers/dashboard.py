@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app import crud
 from app.auth import require_user
 from app.dashboard import get_upcoming_dates
-from app.models import QuickCaptureRequest, QuickCaptureResult, UpcomingDate
+from app.models import QuickCaptureAmbiguous, QuickCaptureRequest, QuickCaptureResult, UpcomingDate
 from app.nemotron import extract_facts
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -30,9 +30,14 @@ def quick_capture(data: QuickCaptureRequest, user_id: int = Depends(require_user
     else:
         matches = crud.match_people_by_text(user_id, data.text)
         if len(matches) != 1:
+            message = (
+                "Found more than one match for that name - which one?"
+                if matches
+                else "Didn't catch a name in that - who's this about?"
+            )
             raise HTTPException(
                 status_code=422,
-                detail="Couldn't tell who that's about - mention their name, or pick them below.",
+                detail=QuickCaptureAmbiguous(message=message, candidates=matches).model_dump(),
             )
         person = matches[0]
 
@@ -40,7 +45,11 @@ def quick_capture(data: QuickCaptureRequest, user_id: int = Depends(require_user
     try:
         extraction = extract_facts(data.text, today_iso=Date.today().isoformat())
     except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        print(f"[dashboard.capture] Nano extraction failed: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail="Couldn't make sense of that automatically - it's saved, you can add facts and dates by hand on their page.",
+        ) from exc
 
     return QuickCaptureResult(
         person_id=person.id,
