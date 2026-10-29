@@ -8,6 +8,10 @@ import { motion } from "motion/react";
 import { api, ApiError, PlanOption } from "@/lib/api";
 import PlanOptionsBoard from "@/components/plan/PlanOptionsBoard";
 import ThinkingIndicator from "@/components/ThinkingIndicator";
+import DateField from "@/components/DateField";
+
+const FIELD_CLASS =
+  "border-0 border-b border-border bg-transparent px-0 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -84,17 +88,17 @@ export default function PlanPageClient() {
       </motion.h1>
 
       <motion.form
-        initial={{ opacity: 0, y: 20, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
         onSubmit={handleGenerate}
-        className="mb-7 flex flex-col gap-4 rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
+        className="mb-7 flex flex-col gap-5"
       >
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Occasion
             <input
-              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
+              className={FIELD_CLASS}
               value={occasion}
               onChange={(e) => setOccasion(e.target.value)}
               required
@@ -102,18 +106,12 @@ export default function PlanPageClient() {
           </label>
           <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Date
-            <input
-              type="date"
-              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
+            <DateField value={date} onChange={setDate} required className={`${FIELD_CLASS} pr-7`} />
           </label>
           <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Area
             <input
-              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
+              className={FIELD_CLASS}
               placeholder={detail?.person.home_city || "Austin, TX"}
               value={area}
               onChange={(e) => setArea(e.target.value)}
@@ -122,7 +120,7 @@ export default function PlanPageClient() {
           <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Budget
             <input
-              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
+              className={FIELD_CLASS}
               placeholder="$, $$, or $$$"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
@@ -131,7 +129,7 @@ export default function PlanPageClient() {
           <label className="col-span-2 flex flex-col gap-1 text-sm text-ink-muted">
             Duration
             <input
-              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
+              className={FIELD_CLASS}
               placeholder="e.g. an afternoon, a full day"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
@@ -141,7 +139,7 @@ export default function PlanPageClient() {
         <button
           type="submit"
           disabled={generating}
-          className="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
+          className="self-start rounded-full bg-clay px-5 py-2.5 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
         >
           {generating ? "Searching and drafting…" : "Generate plan options"}
         </button>

@@ -110,7 +110,7 @@ export default function QuickCapture() {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.35, ease: EASE }}
         >
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+          <form onSubmit={handleSubmit}>
             <VoiceTextArea
               value={text}
               onChange={setText}
@@ -122,14 +122,9 @@ export default function QuickCapture() {
               voiceSupported={voiceSupported}
               onStartListening={startListening}
               onStopListening={stopListening}
+              showSubmitArrow
+              submitDisabled={capturing || !text.trim() || listening}
             />
-            <button
-              type="submit"
-              disabled={capturing || !text.trim() || listening}
-              className="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
-            >
-              {capturing ? "Thinking..." : "Enter"}
-            </button>
           </form>
 
           {capturing && <ThinkingIndicator label="Reading that..." />}

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError, FactProposal, KeyDateProposal } from "@/lib/api";
 import { CATEGORY_LABEL, FACT_CATEGORIES, SENTIMENTS } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
+import DateField from "@/components/DateField";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const RECURRING_HINTS = ["birthday", "anniversary"];
@@ -170,12 +171,11 @@ export default function CaptureReview({
               placeholder="Label"
               disabled={!includeDate}
             />
-            <input
-              type="date"
-              className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink disabled:opacity-50"
+            <DateField
               value={dateValue}
-              onChange={(e) => setDateValue(e.target.value)}
+              onChange={setDateValue}
               disabled={!includeDate}
+              className="rounded border border-border bg-paper-raised py-1 pl-2 pr-7 text-sm text-ink disabled:opacity-50"
             />
             <label className="flex items-center gap-1.5 text-xs text-ink-muted">
               <input

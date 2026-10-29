@@ -85,21 +85,12 @@ export default function PersonPageClient() {
             {person.home_city ? ` · ${person.home_city}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href={`/people/${personId}/plan`}
-            className="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
-          >
-            Plan an outing
-          </Link>
-          <button
-            onClick={handleDeletePerson}
-            disabled={deleting}
-            className="text-sm text-ink-faint transition-colors hover:text-rose disabled:opacity-50"
-          >
-            Delete person
-          </button>
-        </div>
+        <Link
+          href={`/people/${personId}/plan`}
+          className="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
+        >
+          Plan an outing
+        </Link>
       </motion.header>
 
       {error && <p className="mb-4 border-l-2 border-rose/50 pl-3 text-sm text-rose-ink">{error}</p>}
@@ -138,6 +129,21 @@ export default function PersonPageClient() {
         transition={{ duration: 0.5, delay: 0.36, ease: EASE }}
       >
         <PlansList plans={plans ?? []} />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.43, ease: EASE }}
+        className="mt-10 flex justify-center border-t border-border pt-6"
+      >
+        <button
+          onClick={handleDeletePerson}
+          disabled={deleting}
+          className="text-sm font-medium text-rose transition-colors hover:text-rose-ink disabled:opacity-50"
+        >
+          {deleting ? "Deleting..." : "Delete person"}
+        </button>
       </motion.div>
     </div>
   );

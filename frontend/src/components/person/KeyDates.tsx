@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { motion } from "motion/react";
 import { api, ApiError, KeyDate } from "@/lib/api";
 import { formatDate } from "@/lib/dates";
+import DateField from "@/components/DateField";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -79,12 +80,11 @@ export default function KeyDates({
             onChange={(e) => setLabel(e.target.value)}
             required
           />
-          <input
-            type="date"
-            className="rounded-md border border-border bg-paper px-2 py-1.5 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
+          <DateField
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
             required
+            className="rounded-md border border-border bg-paper py-1.5 pl-2 pr-7 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
           />
           <label className="flex items-center gap-1.5 text-sm text-ink-muted">
             <input
