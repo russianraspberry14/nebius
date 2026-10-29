@@ -14,7 +14,7 @@ from app.auth import hash_password  # noqa: E402
 from app.db import init_db  # noqa: E402
 from app.models import FactConfirm, KeyDateCreate, PlanStop  # noqa: E402
 
-DEMO_NAME = "Judge"
+DEMO_NAME = "Alex"
 DEMO_EMAIL = "judge@gmail.com"
 DEMO_PASSWORD = "judge123"
 

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
 import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
+import AppNav from "@/components/AppNav";
 import QuickCapture from "@/components/QuickCapture";
 import UpcomingPlans from "@/components/UpcomingPlans";
 import UpcomingDates from "@/components/UpcomingDates";
@@ -56,41 +57,24 @@ export default function Dashboard() {
   const ownerName = session?.user?.name;
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-14">
+    <>
+      <AppNav />
+      <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-14">
       <motion.header
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: EASE }}
         className="mb-10 flex items-start justify-between"
       >
-        <div>
-          <Link
-            href="/"
-            className="mb-1 block text-xs font-medium uppercase tracking-[0.2em] text-clay"
-          >
-            Kindred
-          </Link>
-          <h1 className="font-display text-3xl italic tracking-tight text-ink">
-            {ownerName ? `${ownerName}’s circle` : "Your circle"}
-          </h1>
-          {session?.user?.email && (
-            <p className="mt-1 text-sm text-ink-faint">{session.user.email}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="shrink-0 rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
-          >
-            {showForm ? "Cancel" : "Add person"}
-          </button>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-sm text-ink-faint transition-colors hover:text-clay"
-          >
-            Sign out
-          </button>
-        </div>
+        <h1 className="font-display text-3xl italic tracking-tight text-ink">
+          {ownerName ? `${ownerName}’s circle` : "Your circle"}
+        </h1>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="shrink-0 rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
+        >
+          {showForm ? "Cancel" : "Add person"}
+        </button>
       </motion.header>
 
       {topError && (
@@ -206,6 +190,7 @@ export default function Dashboard() {
           </motion.li>
         ))}
       </ul>
-    </div>
+      </div>
+    </>
   );
 }
