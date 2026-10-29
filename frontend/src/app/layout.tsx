@@ -15,7 +15,7 @@ const schibsted = Schibsted_Grotesk({
 
 export const metadata: Metadata = {
   title: "Kindred",
-  description: "A private notebook for being thoughtful.",
+  description: "A private notebook for the things that slip through a busy mind.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

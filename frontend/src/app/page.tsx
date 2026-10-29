@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
 import { motion } from "motion/react";
@@ -10,6 +11,7 @@ import UpcomingDates from "@/components/UpcomingDates";
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Home() {
+  const router = useRouter();
   const { data: people, error: loadError, mutate } = useSWR("people", () => api.listPeople());
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -25,19 +27,17 @@ export default function Home() {
     setSubmitting(true);
     setError(null);
     try {
-      await api.createPerson({
+      const person = await api.createPerson({
         name: name.trim(),
         relationship: relationship.trim(),
         home_city: homeCity.trim() || undefined,
       });
-      setName("");
-      setRelationship("");
-      setHomeCity("");
-      setShowForm(false);
       await mutate();
+      // Straight into capture - the whole point is catching what you know
+      // about them before it slips away, not a second trip back later.
+      router.push(`/people/${person.id}`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't add that person.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -50,7 +50,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: EASE }}
-        className="mb-10 flex items-end justify-between"
+        className="mb-4 flex items-end justify-between"
       >
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-[0.2em] text-clay">
@@ -58,7 +58,7 @@ export default function Home() {
           </p>
           <h1 className="font-display text-4xl italic tracking-tight text-ink">
             A notebook for{" "}
-            <span className="not-italic text-clay">being thoughtful</span>
+            <span className="not-italic text-clay">the things that slip away</span>
           </h1>
         </div>
         <button
@@ -68,6 +68,17 @@ export default function Home() {
           {showForm ? "Cancel" : "Add person"}
         </button>
       </motion.header>
+
+      <motion.p
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
+        className="mb-10 max-w-md text-sm text-ink-muted"
+      >
+        For when your attention moves faster than your memory. Say what you heard the
+        moment you hear it &mdash; by voice, no typing required &mdash; and Kindred holds
+        onto it until you need it.
+      </motion.p>
 
       {topError && (
         <div className="rise-in mb-6 rounded-lg border border-rose/30 bg-rose-soft px-4 py-2.5 text-sm text-rose-ink">
@@ -124,7 +135,8 @@ export default function Home() {
 
       {people !== undefined && people.length === 0 && (
         <p className="text-sm text-ink-muted">
-          No one here yet. Add a person to start logging notes about them.
+          No one here yet. Add a person, then just talk &mdash; tell it whatever
+          you&rsquo;d otherwise forget by tomorrow.
         </p>
       )}
 

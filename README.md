@@ -1,8 +1,15 @@
 # Kindred
 
-A private assistant that remembers what the people in your life like and turns it into
-outing and birthday plans before you are scrambling. Log a quick note, Kindred extracts
-structured facts, and it drafts a plan where every choice cites the note behind it.
+A private notebook for people whose attention moves faster than their memory. Someone
+mentions, in passing, that they've always wanted to try pottery - and by the time it's
+useful, it's gone. Kindred is built around the assumption that details slip through,
+especially for ADHD/scattered-attention brains, so capture has to be as close to
+zero-friction as possible: say it out loud the moment you hear it (voice capture, no
+typing, no app-switching), and Nemotron turns it into a structured, searchable fact
+instead of a memory you're hoping you'll still have later. When the date actually
+arrives, Kindred drafts an outing or birthday plan where every choice cites the note
+behind it - the two of you get credit for paying attention, even if the remembering
+wasn't you.
 
 Built for the Personal AI track: persistent memory (person profiles), reusable skills
 (plan outing, suggest gift), user-chosen tools (places/events/weather), and private data
@@ -135,6 +142,23 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
+### Voice capture
+
+The mic button in "Capture a note" (`useSpeechRecognition`, `frontend/src/lib/`)
+transcribes speech to text entirely in the browser via the Web Speech API - no audio
+leaves the device and no backend changes were needed. The moment speech ends, the note
+is captured automatically (no extra click between hearing something and it being
+saved); the resulting text goes through the exact same Nano fact-extraction path as a
+typed note, chips and all.
+
+Supported in Chrome, Edge, and Safari; not in Firefox - the mic button only renders
+when the browser supports it, so typing is always the fallback. Nebius's Token Factory
+doesn't currently list an audio-capable Nemotron model on this account (confirmed via
+`models.list()`), which is why transcription happens client-side rather than through
+an Omni-style model as the original spec sketch assumed - swapping that in later, once
+available, would be a drop-in replacement for the browser API without touching the
+Nano extraction step downstream.
+
 ### Smoke-testing the Nemotron tiers
 
 One test call to each tier (Day 1 checklist item):
@@ -249,8 +273,11 @@ frontend/
       UpcomingDates.tsx            # "Plan this now" / "Draft ready"
       person/   # KeyDates, NoteCapture, NotesList, FactsList, PlansList, PlanPageClient
     lib/
-      api.ts         # typed fetch client for the backend
-      constants.ts   # fact category labels/colors
+      api.ts                   # typed fetch client for the backend
+      constants.ts             # fact category labels/colors
+      useSpeechRecognition.ts  # browser-native voice-to-text for note capture
+    types/
+      speech-recognition.d.ts  # ambient types for the Web Speech API
 ```
 
 ## License
