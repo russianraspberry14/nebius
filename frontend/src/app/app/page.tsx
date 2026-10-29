@@ -70,9 +70,15 @@ export default function Dashboard() {
         </h1>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="shrink-0 rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
         >
-          {showForm ? "Cancel" : "Add person"}
+          {showForm ? (
+            "Cancel"
+          ) : (
+            <>
+              <span className="text-base leading-none">+</span> Add person
+            </>
+          )}
         </button>
       </motion.header>
 

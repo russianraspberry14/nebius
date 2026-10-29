@@ -88,7 +88,7 @@ export default function QuickCapture() {
   return (
     <section className="mb-8">
       <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
-        Add information for someone / plan something good!
+        What would you like to do today?
       </h2>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -128,7 +128,7 @@ export default function QuickCapture() {
               disabled={capturing || !text.trim() || listening}
               className="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
             >
-              {capturing ? "Thinking..." : "Capture"}
+              {capturing ? "Thinking..." : "Enter"}
             </button>
           </form>
 
