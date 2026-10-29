@@ -2,6 +2,7 @@ import Link from "next/link";
 import LandingNav from "@/components/landing/LandingNav";
 import Hero from "@/components/landing/Hero";
 import Reveal from "@/components/landing/Reveal";
+import HoldingHandsIllustration from "@/components/landing/HoldingHandsIllustration";
 import {
   BellIcon,
   ChatIcon,
@@ -76,7 +77,12 @@ export default function Landing() {
       <Hero />
 
       {/* Mission */}
-      <section id="mission" className="scroll-section border-t border-border px-6 py-24">
+      <section id="mission" className="scroll-section relative overflow-hidden border-t border-border px-6 py-24">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[700px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.12] blur-3xl"
+          style={{ background: "radial-gradient(circle, var(--color-clay) 0%, transparent 70%)" }}
+        />
         <div className="mx-auto max-w-2xl">
           <Reveal>
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-clay">
@@ -106,6 +112,9 @@ export default function Landing() {
               the two of you get credit for paying attention, even if the remembering
               wasn&rsquo;t you.
             </p>
+          </Reveal>
+          <Reveal delay={0.2} className="mt-10">
+            <HoldingHandsIllustration className="w-full rounded-xl shadow-warm-lg" />
           </Reveal>
         </div>
       </section>

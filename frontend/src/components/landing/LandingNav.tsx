@@ -10,6 +10,12 @@ const SECTIONS = [
   { id: "features", label: "Features" },
 ];
 
+const MAGNIFY = {
+  whileHover: { scale: 1.1 },
+  whileTap: { scale: 0.92 },
+  transition: { type: "spring" as const, stiffness: 400, damping: 17 },
+};
+
 export default function LandingNav() {
   const [active, setActive] = useState<string | null>(null);
 
@@ -44,40 +50,46 @@ export default function LandingNav() {
       className="sticky top-0 z-20 border-b border-border bg-paper/80 backdrop-blur-md"
     >
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <button
+        <motion.button
+          {...MAGNIFY}
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="text-xs font-medium uppercase tracking-[0.2em] text-clay"
+          className="font-display text-2xl italic tracking-tight text-clay"
         >
           Kindred
-        </button>
+        </motion.button>
 
         <div className="hidden items-center gap-6 sm:flex">
           {SECTIONS.map((s) => (
-            <button
+            <motion.button
               key={s.id}
+              {...MAGNIFY}
               onClick={() => scrollTo(s.id)}
               className={`text-sm transition-colors ${
                 active === s.id ? "text-clay" : "text-ink-muted hover:text-ink"
               }`}
             >
               {s.label}
-            </button>
+            </motion.button>
           ))}
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-ink-muted transition-colors hover:text-clay"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-md bg-clay px-3.5 py-1.5 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
-          >
-            Sign up
-          </Link>
+          <motion.div {...MAGNIFY}>
+            <Link
+              href="/login"
+              className="text-sm font-medium text-ink-muted transition-colors hover:text-clay"
+            >
+              Log in
+            </Link>
+          </motion.div>
+          <motion.div {...MAGNIFY}>
+            <Link
+              href="/signup"
+              className="block rounded-md bg-clay px-3.5 py-1.5 text-sm font-medium text-clay-ink shadow-warm transition-colors hover:bg-clay-hover"
+            >
+              Sign up
+            </Link>
+          </motion.div>
         </div>
       </div>
     </motion.nav>
