@@ -14,7 +14,7 @@ def test_capture_note_returns_proposed_facts_without_saving_them(client, monkeyp
             FactProposal(category="dislike", value="loud bars", sentiment="negative", confidence=0.85),
         ]
     )
-    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text: proposals)
+    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text, **kwargs: proposals)
 
     res = client.post(
         f"/people/{person['id']}/notes",
@@ -33,7 +33,7 @@ def test_capture_note_returns_proposed_facts_without_saving_them(client, monkeyp
 
 def test_confirm_facts_persists_chosen_subset(client, monkeypatch):
     person = _make_person(client)
-    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text: FactExtraction(facts=[]))
+    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text, **kwargs: FactExtraction(facts=[]))
 
     note = client.post(f"/people/{person['id']}/notes", json={"text": "note text"}).json()["note"]
 
@@ -59,7 +59,7 @@ def test_confirm_facts_persists_chosen_subset(client, monkeypatch):
 def test_capture_note_saves_note_even_if_extraction_fails(client, monkeypatch):
     person = _make_person(client)
 
-    def boom(text):
+    def boom(text, **kwargs):
         raise ValueError("Nano did not return valid fact JSON: simulated failure")
 
     monkeypatch.setattr("app.routers.notes.extract_facts", boom)
@@ -75,7 +75,7 @@ def test_capture_note_saves_note_even_if_extraction_fails(client, monkeypatch):
 
 def test_delete_note_cascades_its_facts(client, monkeypatch):
     person = _make_person(client)
-    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text: FactExtraction(facts=[]))
+    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text, **kwargs: FactExtraction(facts=[]))
 
     note = client.post(f"/people/{person['id']}/notes", json={"text": "note"}).json()["note"]
     client.post(
@@ -92,7 +92,7 @@ def test_delete_note_cascades_its_facts(client, monkeypatch):
 
 def test_delete_fact(client, monkeypatch):
     person = _make_person(client)
-    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text: FactExtraction(facts=[]))
+    monkeypatch.setattr("app.routers.notes.extract_facts", lambda text, **kwargs: FactExtraction(facts=[]))
     note = client.post(f"/people/{person['id']}/notes", json={"text": "note"}).json()["note"]
     fact = client.post(
         f"/notes/{note['id']}/facts",

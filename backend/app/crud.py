@@ -1,4 +1,5 @@
 import json
+import re
 import sqlite3
 from typing import Optional
 
@@ -129,6 +130,24 @@ def list_people(user_id: int) -> list[PersonOut]:
         return [_row_to_person(r) for r in rows]
     finally:
         conn.close()
+
+
+def match_people_by_text(user_id: int, text: str) -> list[PersonOut]:
+    """Finds which of this user's people are named in free text, for the
+    dashboard's quick-capture box (no person_id in the URL to key off of).
+
+    Matches whole words only (case-insensitive) against each person's full
+    name and first name, so "Sam" doesn't also match "Samantha". Returns
+    every person matched - the caller treats zero or more-than-one as
+    ambiguous and asks the user to pick.
+    """
+    people = list_people(user_id)
+    matches = []
+    for person in people:
+        candidates = {person.name.lower()} | {part.lower() for part in person.name.split()}
+        if any(re.search(rf"\b{re.escape(c)}\b", text, re.IGNORECASE) for c in candidates):
+            matches.append(person)
+    return matches
 
 
 def get_person(

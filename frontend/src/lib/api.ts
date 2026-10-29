@@ -53,9 +53,23 @@ export interface FactProposal {
   confidence: number;
 }
 
+export interface KeyDateProposal {
+  label: string;
+  date: string;
+}
+
 export interface NoteCaptureResult {
   note: Note;
   proposed_facts: FactProposal[];
+  proposed_key_date: KeyDateProposal | null;
+}
+
+export interface QuickCaptureResult {
+  person_id: number;
+  person_name: string;
+  note: Note;
+  proposed_facts: FactProposal[];
+  proposed_key_date: KeyDateProposal | null;
 }
 
 export interface PersonDetail {
@@ -226,6 +240,12 @@ export const api = {
   getUpcomingDates: () => request<UpcomingDate[]>("/dashboard/upcoming-dates"),
 
   getUpcomingPlans: () => request<UpcomingPlan[]>("/plans/upcoming"),
+
+  quickCapture: (text: string, personId?: number) =>
+    request<QuickCaptureResult>("/dashboard/capture", {
+      method: "POST",
+      body: JSON.stringify({ text, person_id: personId ?? null }),
+    }),
 
   reviseStop: (data: ReviseStopRequest) =>
     request<PlanStop>("/plans/revise-stop", { method: "POST", body: JSON.stringify(data) }),

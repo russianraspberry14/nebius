@@ -2,7 +2,7 @@ from datetime import date
 
 from app import crud
 from app.dashboard import get_upcoming_dates
-from app.models import KeyDateCreate
+from app.models import FactExtraction, FactProposal, KeyDateCreate, KeyDateProposal
 
 
 def test_upcoming_dates_sorted_and_filters_past_one_time_dates(tool_db, test_user_id):
@@ -37,3 +37,55 @@ def test_upcoming_dates_only_shows_the_requesting_users_people(tool_db, test_use
     )
 
     assert get_upcoming_dates(test_user_id, today=date(2026, 10, 25)) == []
+
+
+def _make_person(client, name):
+    return client.post("/people", json={"name": name, "relationship": "friend"}).json()
+
+
+def test_quick_capture_routes_to_the_named_person(client, monkeypatch):
+    maya = _make_person(client, "Maya Chen")
+    _make_person(client, "Sam Rivera")
+
+    extraction = FactExtraction(
+        facts=[FactProposal(category="past_experience", value="graduated", sentiment="positive", confidence=0.9)],
+        key_date=KeyDateProposal(label="Graduation", date="2026-11-08"),
+    )
+    monkeypatch.setattr("app.routers.dashboard.extract_facts", lambda text, **kwargs: extraction)
+
+    res = client.post("/dashboard/capture", json={"text": "Maya graduated on 8th November"})
+    assert res.status_code == 201
+    body = res.json()
+    assert body["person_id"] == maya["id"]
+    assert body["person_name"] == "Maya Chen"
+    assert body["proposed_key_date"] == {"label": "Graduation", "date": "2026-11-08"}
+    assert len(body["proposed_facts"]) == 1
+
+    # The note is saved against the resolved person, same as per-person capture.
+    detail = client.get(f"/people/{maya['id']}").json()
+    assert len(detail["notes"]) == 1
+
+
+def test_quick_capture_ambiguous_without_a_name_asks_to_pick(client, monkeypatch):
+    _make_person(client, "Maya Chen")
+    _make_person(client, "Sam Rivera")
+    monkeypatch.setattr(
+        "app.routers.dashboard.extract_facts", lambda text, **kwargs: FactExtraction(facts=[])
+    )
+
+    res = client.post("/dashboard/capture", json={"text": "graduated on 8th November"})
+    assert res.status_code == 422
+
+
+def test_quick_capture_with_explicit_person_id_skips_matching(client, monkeypatch):
+    maya = _make_person(client, "Maya Chen")
+    _make_person(client, "Sam Rivera")
+    monkeypatch.setattr(
+        "app.routers.dashboard.extract_facts", lambda text, **kwargs: FactExtraction(facts=[])
+    )
+
+    res = client.post(
+        "/dashboard/capture", json={"text": "graduated on 8th November", "person_id": maya["id"]}
+    )
+    assert res.status_code == 201
+    assert res.json()["person_id"] == maya["id"]

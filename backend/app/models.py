@@ -93,9 +93,16 @@ class FactProposal(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class KeyDateProposal(BaseModel):
+    """A key date candidate extracted by Nano, not yet persisted."""
+    label: str
+    date: str  # ISO date, resolved against the date the note was captured
+
+
 class FactExtraction(BaseModel):
     """Nano's full structured response for one note."""
     facts: list[FactProposal]
+    key_date: Optional[KeyDateProposal] = None
 
 
 class FactConfirm(BaseModel):
@@ -126,6 +133,23 @@ class FactOut(BaseModel):
 class NoteCaptureResult(BaseModel):
     note: NoteOut
     proposed_facts: list[FactProposal]
+    proposed_key_date: Optional[KeyDateProposal] = None
+
+
+class QuickCaptureRequest(BaseModel):
+    """Dashboard-wide capture: the person isn't known from a URL, so it's
+    either resolved by matching their name in the text, or pinned explicitly
+    (person_id) once the user disambiguates client-side."""
+    text: str = Field(min_length=1)
+    person_id: Optional[int] = None
+
+
+class QuickCaptureResult(BaseModel):
+    person_id: int
+    person_name: str
+    note: NoteOut
+    proposed_facts: list[FactProposal]
+    proposed_key_date: Optional[KeyDateProposal] = None
 
 
 class PersonDetail(BaseModel):

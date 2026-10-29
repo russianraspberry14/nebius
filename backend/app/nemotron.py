@@ -6,6 +6,8 @@ smallest tier that can do it well (see spec: Nano for note extraction, Super
 for tool-calling/revisions, Ultra for cited plan generation).
 """
 
+from datetime import date
+
 from openai import OpenAI
 
 from app.config import (
@@ -69,17 +71,28 @@ FACT_EXTRACTION_SYSTEM_PROMPT = """You extract structured facts about a person f
 user wrote about them. Output strict JSON matching this shape and nothing else:
 
 {"facts": [{"category": "like|dislike|wishlist|dietary|constraint|past_experience", \
-"value": "short phrase", "sentiment": "positive|negative|neutral", "confidence": 0.0-1.0}]}
+"value": "short phrase", "sentiment": "positive|negative|neutral", "confidence": 0.0-1.0}], \
+"key_date": {"label": "short label, e.g. Birthday or Graduation", "date": "YYYY-MM-DD"} or null}
 
-Rules:
+Rules for "facts":
 - Only extract facts that are actually stated or strongly implied in the note. Do not invent facts.
 - Skip health, financial, or other sensitive categories entirely UNLESS the user wrote them as an \
 explicit constraint (e.g. "vegetarian", "no stairs", "allergic to peanuts") - those go in "dietary" \
 or "constraint".
 - "value" should be a short phrase, not a full sentence (e.g. "wants to try pottery", not \
 "She said she wants to try pottery sometime").
-- If the note contains no extractable facts, return {"facts": []}.
-- Output ONLY the JSON object. No markdown fences, no commentary.
+- If the note contains no extractable facts, use an empty list.
+
+Rules for "key_date":
+- Only set it if the note names a specific, datable event worth remembering (birthday, \
+anniversary, graduation, appointment, etc.) - not a vague timeframe like "next month".
+- Today's date is {today}. Resolve partial dates (e.g. "8th November", "Nov 8") against it: if no \
+year is stated and that month/day has already passed this year, use next year; otherwise use this \
+year. If the note itself implies a year (e.g. "graduated in 2024"), use that instead.
+- "label" is a short title (e.g. "Graduation", "Birthday"), not a restatement of the whole note.
+- If no datable event is mentioned, set it to null.
+
+Output ONLY the JSON object. No markdown fences, no commentary.
 """
 
 
@@ -87,8 +100,8 @@ def _parse_fact_json(raw: str) -> FactExtraction:
     return parse_structured_json(raw, FactExtraction)
 
 
-def extract_facts(note_text: str) -> FactExtraction:
-    """Run a note through Nano and return validated fact proposals.
+def extract_facts(note_text: str, today_iso: str | None = None) -> FactExtraction:
+    """Run a note through Nano and return validated fact (and key date) proposals.
 
     Tries once with JSON-mode response_format, falls back to plain completion
     if the model rejects that param, and raises ValueError if neither attempt
@@ -100,8 +113,10 @@ def extract_facts(note_text: str) -> FactExtraction:
     if not model_id:
         raise ValueError("No model ID configured for tier 'nano'. Set NANO_MODEL_ID in backend/.env.")
 
+    today = today_iso or date.today().isoformat()
+    system_prompt = FACT_EXTRACTION_SYSTEM_PROMPT.replace("{today}", today)
     messages = [
-        {"role": "system", "content": FACT_EXTRACTION_SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": note_text},
     ]
 

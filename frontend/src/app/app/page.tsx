@@ -7,6 +7,7 @@ import { FormEvent, useState } from "react";
 import useSWR from "swr";
 import { motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
+import QuickCapture from "@/components/QuickCapture";
 import UpcomingPlans from "@/components/UpcomingPlans";
 import UpcomingDates from "@/components/UpcomingDates";
 
@@ -132,6 +133,14 @@ export default function Dashboard() {
           </button>
         </form>
       )}
+
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
+      >
+        <QuickCapture />
+      </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 14 }}

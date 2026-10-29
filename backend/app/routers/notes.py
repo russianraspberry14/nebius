@@ -1,3 +1,5 @@
+from datetime import date as Date
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
@@ -10,23 +12,27 @@ router = APIRouter(tags=["notes"])
 
 @router.post("/people/{person_id}/notes", response_model=NoteCaptureResult, status_code=201)
 def capture_note(person_id: int, data: NoteCreate, user_id: int = Depends(require_user)):
-    """Save the raw note, then run it through Nano for proposed facts.
+    """Save the raw note, then run it through Nano for proposed facts (and,
+    if the note names a datable event, a proposed key date).
 
     The note is saved immediately (it's the source of truth for citations);
-    the proposed facts are NOT persisted here - the user accepts/edits/deletes
-    each chip client-side, then POSTs the final set to /notes/{note_id}/facts.
+    nothing proposed here is persisted yet - the user accepts/edits/deletes
+    each chip client-side, then POSTs facts to /notes/{note_id}/facts and/or
+    the key date to /people/{person_id}/key-dates.
     """
     if crud.get_person(person_id, user_id) is None:
         raise HTTPException(status_code=404, detail="Person not found")
 
     note = crud.create_note(person_id, data.text)
     try:
-        extraction = extract_facts(data.text)
+        extraction = extract_facts(data.text, today_iso=Date.today().isoformat())
     except ValueError as exc:
         # Note is already saved; the user can still confirm facts manually later.
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    return NoteCaptureResult(note=note, proposed_facts=extraction.facts)
+    return NoteCaptureResult(
+        note=note, proposed_facts=extraction.facts, proposed_key_date=extraction.key_date
+    )
 
 
 @router.get("/people/{person_id}/notes", response_model=list[NoteOut])
