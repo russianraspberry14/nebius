@@ -21,6 +21,11 @@ from app.models import (
 )
 from app.nemotron import get_client
 
+# Super and Ultra are reasoning models - they spend completion tokens on
+# hidden reasoning_content before any visible output, so a tight max_tokens
+# can truncate before the real JSON reply ever appears.
+COMPLETION_MAX_TOKENS = 4096
+
 PLAN_SYSTEM_PROMPT = """You draft an outing or birthday plan for the given person/people, using \
 ONLY the candidate places/events you're given and ONLY the facts you're given about them.
 
@@ -121,6 +126,7 @@ def generate_plan_options(
             {"role": "user", "content": user_context},
         ],
         temperature=0.4,
+        max_tokens=COMPLETION_MAX_TOKENS,
     )
     result = parse_structured_json(response.choices[0].message.content, PlanGenerateResult)
     return _ground_plan(result, known_fact_ids, known_urls)
@@ -187,6 +193,7 @@ def revise_stop(
             {"role": "user", "content": user_context},
         ],
         temperature=0.4,
+        max_tokens=COMPLETION_MAX_TOKENS,
     )
     result = parse_structured_json(response.choices[0].message.content, StopReviseResult)
     return _ground_stop(result.stop, known_fact_ids, known_urls)

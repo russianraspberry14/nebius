@@ -17,6 +17,10 @@ from app.tools.places import search_places
 from app.tools.weather import get_weather
 
 MAX_TOOL_CALLS = 6
+# Super is a reasoning model - it spends completion tokens on hidden
+# reasoning_content before any visible output, so a tight max_tokens can
+# truncate before the real reply (or tool call) ever appears.
+COMPLETION_MAX_TOKENS = 4096
 
 TOOL_FUNCTIONS = {
     "geocode": geocode,
@@ -164,6 +168,7 @@ def run_candidate_search(
             tools=TOOL_SCHEMAS,
             tool_choice="auto",
             temperature=0,
+            max_tokens=COMPLETION_MAX_TOKENS,
         )
         message = response.choices[0].message
 
@@ -196,6 +201,10 @@ def run_candidate_search(
         }
     )
     response = client.chat.completions.create(
-        model=SUPER_MODEL_ID, messages=messages, tool_choice="none", temperature=0
+        model=SUPER_MODEL_ID,
+        messages=messages,
+        tool_choice="none",
+        temperature=0,
+        max_tokens=COMPLETION_MAX_TOKENS,
     )
     return parse_structured_json(response.choices[0].message.content, CandidateSearchResult)
