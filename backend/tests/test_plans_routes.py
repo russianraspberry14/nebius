@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app.models import CandidateSearchResult, PlanGenerateResult
+from app.models import CandidateSearchResult, PlanChatSlots, PlanGenerateResult
 
 
 def _make_person(client, name="Maya"):
@@ -208,6 +208,78 @@ def test_save_plan_404s_for_unknown_person(client):
         },
     )
     assert res.status_code == 404
+
+
+def test_plan_chat_asks_for_missing_slots(client, monkeypatch):
+    _make_person(client, "Maya")
+    monkeypatch.setattr(
+        "app.routers.plans.parse_plan_slots",
+        lambda text, known, **kwargs: PlanChatSlots(occasion="dinner date"),
+    )
+
+    res = client.post("/plans/chat", json={"text": "plan a dinner date for me and Maya"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ready"] is False
+    assert set(body["missing"]) == {"date", "area"}
+    assert body["slots"]["occasion"] == "dinner date"
+    assert "area" in body["reply"].lower() or "day" in body["reply"].lower()
+
+
+def test_plan_chat_generates_once_slots_are_complete(client, monkeypatch):
+    maya = _make_person(client, "Maya")
+    monkeypatch.setattr(
+        "app.routers.plans.parse_plan_slots",
+        lambda text, known, **kwargs: PlanChatSlots(date="2026-11-14", area="Austin"),
+    )
+    monkeypatch.setattr(
+        "app.routers.plans.run_candidate_search", lambda **kwargs: CandidateSearchResult()
+    )
+    monkeypatch.setattr(
+        "app.routers.plans.generate_plan_options",
+        lambda **kwargs: PlanGenerateResult(
+            options=[{"title": "Cozy night", "stops": [{"name": "Clayworks", "cited_fact_ids": []}]}]
+        ),
+    )
+
+    res = client.post(
+        "/plans/chat",
+        json={
+            "text": "Saturday evening, somewhere in Austin",
+            "person_id": maya["id"],
+            "slots": {"occasion": "dinner date"},
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ready"] is True
+    assert body["person_id"] == maya["id"]
+    assert len(body["options"]) == 1
+    assert body["options"][0]["title"] == "Cozy night"
+
+
+def test_plan_chat_ambiguous_without_a_name(client, monkeypatch):
+    _make_person(client, "Maya Chen")
+    _make_person(client, "Sam Rivera")
+
+    res = client.post("/plans/chat", json={"text": "plan a dinner date"})
+    assert res.status_code == 422
+    detail = res.json()["detail"]
+    assert detail["candidates"] == []
+
+
+def test_plan_chat_with_explicit_person_id_skips_matching(client, monkeypatch):
+    maya = _make_person(client, "Maya Chen")
+    monkeypatch.setattr(
+        "app.routers.plans.parse_plan_slots",
+        lambda text, known, **kwargs: PlanChatSlots(),
+    )
+
+    res = client.post(
+        "/plans/chat", json={"text": "plan something", "person_id": maya["id"]}
+    )
+    assert res.status_code == 200
+    assert res.json()["person_id"] == maya["id"]
 
 
 def test_dashboard_upcoming_dates(client):

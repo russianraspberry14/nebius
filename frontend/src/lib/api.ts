@@ -152,6 +152,32 @@ export interface QuickCaptureAmbiguous {
   candidates: Person[];
 }
 
+export interface PlanChatSlots {
+  occasion: string | null;
+  date: string | null;
+  area: string | null;
+  budget: string | null;
+  duration: string | null;
+}
+
+export interface PlanChatResult {
+  person_id: number;
+  person_name: string;
+  slots: PlanChatSlots;
+  missing: ("date" | "area")[];
+  reply: string;
+  ready: boolean;
+  options: PlanOption[];
+}
+
+const EMPTY_PLAN_CHAT_SLOTS: PlanChatSlots = {
+  occasion: null,
+  date: null,
+  area: null,
+  budget: null,
+  duration: null,
+};
+
 class ApiError extends Error {
   status: number;
   // The raw `detail` from the response body, before it was flattened into
@@ -251,6 +277,12 @@ export const api = {
   getUpcomingDates: () => request<UpcomingDate[]>("/dashboard/upcoming-dates"),
 
   getUpcomingPlans: () => request<UpcomingPlan[]>("/plans/upcoming"),
+
+  planChat: (text: string, personId?: number, slots: PlanChatSlots = EMPTY_PLAN_CHAT_SLOTS) =>
+    request<PlanChatResult>("/plans/chat", {
+      method: "POST",
+      body: JSON.stringify({ text, person_id: personId ?? null, slots }),
+    }),
 
   quickCapture: (text: string, personId?: number) =>
     request<QuickCaptureResult>("/dashboard/capture", {

@@ -241,6 +241,35 @@ class PlanGenerateResult(BaseModel):
     options: list[PlanOption]
 
 
+# ---- Plan chat (conversational plan creation) ----
+
+class PlanChatSlots(BaseModel):
+    """What the conversation has pinned down so far. Everything optional -
+    filled in incrementally across turns, and re-sent each turn so the
+    parser only needs to supply what's still missing."""
+    occasion: Optional[str] = None
+    date: Optional[str] = None  # ISO date
+    area: Optional[str] = None
+    budget: Optional[str] = None
+    duration: Optional[str] = None
+
+
+class PlanChatRequest(BaseModel):
+    text: str = Field(min_length=1)
+    person_id: Optional[int] = None
+    slots: PlanChatSlots = Field(default_factory=PlanChatSlots)
+
+
+class PlanChatResult(BaseModel):
+    person_id: int
+    person_name: str
+    slots: PlanChatSlots
+    missing: list[Literal["date", "area"]]
+    reply: str
+    ready: bool
+    options: list[PlanOption] = []
+
+
 class PlanSaveRequest(BaseModel):
     person_ids: list[int] = Field(min_length=1)
     occasion: str

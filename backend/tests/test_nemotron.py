@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from app import nemotron
-from app.models import FactExtraction
+from app.models import FactExtraction, PlanChatSlots
 
 
 def test_parse_fact_json_plain():
@@ -89,3 +89,32 @@ def test_extract_facts_without_model_id_configured(monkeypatch):
     monkeypatch.setattr(nemotron, "get_client", lambda: SimpleNamespace())
     with pytest.raises(ValueError, match="No model ID configured"):
         nemotron.extract_facts("some note")
+
+
+def test_parse_plan_slots_fills_in_from_text(monkeypatch):
+    monkeypatch.setitem(nemotron.TIER_MODELS, "nano", "fake-nano-model")
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            return _fake_response(
+                '{"occasion": "dinner date", "date": "2026-11-14", "area": "Austin", '
+                '"budget": null, "duration": "evening, around 7pm"}'
+            )
+
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions()))
+    monkeypatch.setattr(nemotron, "get_client", lambda: fake_client)
+
+    result = nemotron.parse_plan_slots(
+        "Saturday evening around 7, somewhere in Austin", known=PlanChatSlots(occasion="dinner date")
+    )
+    assert result.date == "2026-11-14"
+    assert result.area == "Austin"
+    assert result.duration == "evening, around 7pm"
+    assert result.budget is None
+
+
+def test_parse_plan_slots_without_model_id_configured(monkeypatch):
+    monkeypatch.setitem(nemotron.TIER_MODELS, "nano", "")
+    monkeypatch.setattr(nemotron, "get_client", lambda: SimpleNamespace())
+    with pytest.raises(ValueError, match="No model ID configured"):
+        nemotron.parse_plan_slots("some text", known=PlanChatSlots())

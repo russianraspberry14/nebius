@@ -6,6 +6,7 @@ smallest tier that can do it well (see spec: Nano for note extraction, Super
 for tool-calling/revisions, Ultra for cited plan generation).
 """
 
+import json
 from datetime import date
 
 from openai import OpenAI
@@ -18,7 +19,7 @@ from app.config import (
     ULTRA_MODEL_ID,
 )
 from app.json_utils import parse_structured_json
-from app.models import FactExtraction
+from app.models import FactExtraction, PlanChatSlots
 
 TIER_MODELS = {
     "nano": NANO_MODEL_ID,
@@ -100,24 +101,19 @@ def _parse_fact_json(raw: str) -> FactExtraction:
     return parse_structured_json(raw, FactExtraction)
 
 
-def extract_facts(note_text: str, today_iso: str | None = None) -> FactExtraction:
-    """Run a note through Nano and return validated fact (and key date) proposals.
-
-    Tries once with JSON-mode response_format, falls back to plain completion
-    if the model rejects that param, and raises ValueError if neither attempt
-    yields valid JSON matching the schema - callers should surface that as a
-    502 rather than silently saving garbage.
-    """
+def _nano_structured_call(system_prompt: str, user_text: str, model_cls):
+    """Shared two-attempt dance for a Nano call that must return JSON
+    matching `model_cls`: try JSON-mode response_format first, fall back to
+    a plain completion if the model rejects that param, and raise
+    ValueError (never silently return garbage) if neither attempt parses."""
     client = get_client()
     model_id = TIER_MODELS["nano"]
     if not model_id:
         raise ValueError("No model ID configured for tier 'nano'. Set NANO_MODEL_ID in backend/.env.")
 
-    today = today_iso or date.today().isoformat()
-    system_prompt = FACT_EXTRACTION_SYSTEM_PROMPT.replace("{today}", today)
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": note_text},
+        {"role": "user", "content": user_text},
     ]
 
     last_error: Exception | None = None
@@ -127,8 +123,48 @@ def extract_facts(note_text: str, today_iso: str | None = None) -> FactExtractio
             response = client.chat.completions.create(
                 model=model_id, messages=messages, temperature=0, **kwargs
             )
-            return _parse_fact_json(response.choices[0].message.content)
+            return parse_structured_json(response.choices[0].message.content, model_cls)
         except Exception as exc:
             last_error = exc
 
-    raise ValueError(f"Nano did not return valid fact JSON: {last_error}")
+    raise ValueError(f"Nano did not return valid JSON: {last_error}")
+
+
+def extract_facts(note_text: str, today_iso: str | None = None) -> FactExtraction:
+    """Run a note through Nano and return validated fact (and key date) proposals."""
+    today = today_iso or date.today().isoformat()
+    system_prompt = FACT_EXTRACTION_SYSTEM_PROMPT.replace("{today}", today)
+    return _nano_structured_call(system_prompt, note_text, FactExtraction)
+
+
+PLAN_SLOT_SYSTEM_PROMPT = """You extract plan-request details from what someone says about planning \
+an outing. Output strict JSON matching this shape and nothing else:
+
+{"occasion": "short phrase, e.g. dinner date" or null, "date": "YYYY-MM-DD" or null, \
+"area": "a place name, e.g. Austin or downtown" or null, "budget": "e.g. $, $$, $$$" or null, \
+"duration": "e.g. an afternoon, evening around 7pm, a full day" or null}
+
+Already known from earlier in this conversation (don't repeat these back, just fill in gaps or \
+override one if the new message explicitly changes it): {known}
+
+Rules:
+- Only set a field if the message actually states or strongly implies it. Leave anything unstated \
+as null - do not guess or invent a default.
+- Today's date is {today}. Resolve a relative or partial date (e.g. "this Saturday", "Nov 8", \
+"next Friday") to an absolute ISO date against it.
+- If a specific time of day is mentioned (e.g. "around 7pm", "in the morning") and no separate \
+duration is stated, fold it into "duration" (e.g. "evening, around 7pm").
+- "area" is a place, not a venue type - "a park" is not an area, "Austin" is.
+
+Output ONLY the JSON object. No markdown fences, no commentary.
+"""
+
+
+def parse_plan_slots(text: str, known: PlanChatSlots, today_iso: str | None = None) -> PlanChatSlots:
+    """Run one turn of a plan-chat conversation through Nano, extracting
+    whatever new occasion/date/area/budget/duration info it adds."""
+    today = today_iso or date.today().isoformat()
+    system_prompt = PLAN_SLOT_SYSTEM_PROMPT.replace("{today}", today).replace(
+        "{known}", json.dumps(known.model_dump())
+    )
+    return _nano_structured_call(system_prompt, text, PlanChatSlots)
