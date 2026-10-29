@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { api, ApiError, FactCategory, Note, Sentiment } from "@/lib/api";
 import { CATEGORY_LABEL, FACT_CATEGORIES, SENTIMENTS } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 function ManualFactForm({ noteId, onSaved }: { noteId: number; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
@@ -112,11 +115,14 @@ export default function NotesList({
       {notes.length === 0 ? (
         <p className="text-sm text-ink-muted">No notes yet.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {notes.map((n) => (
-            <li
+        <div className="list-group">
+          {notes.map((n, i) => (
+            <motion.div
               key={n.id}
-              className="rounded-lg border border-border bg-paper-raised p-3.5 shadow-warm"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.05, ease: EASE }}
+              className="px-4 py-3.5"
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="font-display text-[15px] italic leading-snug text-ink">
@@ -131,9 +137,9 @@ export default function NotesList({
               </div>
               <p className="mt-1.5 text-xs text-ink-faint">{formatDate(n.created_at)}</p>
               <ManualFactForm noteId={n.id} onSaved={onChange} />
-            </li>
+            </motion.div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );

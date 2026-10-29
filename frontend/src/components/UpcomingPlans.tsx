@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/dates";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function UpcomingPlans() {
   const { data: plans } = useSWR("upcoming-plans", () => api.getUpcomingPlans());
@@ -15,12 +18,17 @@ export default function UpcomingPlans() {
       <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
         Plans coming up
       </h2>
-      <ul className="flex flex-col gap-2">
-        {plans.map((plan) => (
-          <li key={plan.id}>
+      <div className="list-group">
+        {plans.map((plan, i) => (
+          <motion.div
+            key={plan.id}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.45, delay: i * 0.06, ease: EASE }}
+          >
             <Link
               href={plan.person_ids[0] ? `/people/${plan.person_ids[0]}` : "/app"}
-              className="group flex items-center justify-between gap-3 rounded-lg border border-border bg-paper-raised px-4 py-3 shadow-warm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-warm-lg"
+              className="group flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-clay-soft/40"
             >
               <div className="min-w-0">
                 <p className="flex items-center gap-2 font-display text-base capitalize text-ink">
@@ -37,9 +45,9 @@ export default function UpcomingPlans() {
               </div>
               <span className="shrink-0 text-sm text-ink-muted">{formatDate(plan.date)}</span>
             </Link>
-          </li>
+          </motion.div>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }

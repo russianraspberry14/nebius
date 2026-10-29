@@ -99,10 +99,11 @@ function OptionCard({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay, ease: EASE }}
-      className="rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
+      initial={{ opacity: 0, y: 28, scale: 0.96, filter: "blur(6px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      transition={{ duration: 0.65, delay, ease: EASE }}
+      whileHover={{ y: -3 }}
+      className="rounded-xl border border-border bg-paper-raised p-5 shadow-warm transition-shadow hover:shadow-warm-lg"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="font-display text-xl text-ink">{option.title}</h3>
@@ -116,7 +117,13 @@ function OptionCard({
       </div>
       <ul className="flex flex-col gap-4">
         {option.stops.map((stop, i) => (
-          <li key={i} className="border-l-2 border-clay/40 pl-3.5">
+          <motion.li
+            key={i}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: delay + 0.15 + i * 0.07, ease: EASE }}
+            className="border-l-2 border-clay/40 pl-3.5"
+          >
             <div className="flex flex-wrap items-baseline gap-x-2">
               {stop.url ? (
                 <a
@@ -145,7 +152,7 @@ function OptionCard({
                 revising={revisingStopIndex === i}
               />
             )}
-          </li>
+          </motion.li>
         ))}
       </ul>
     </motion.div>
@@ -234,9 +241,7 @@ export default function PlanOptionsBoard({
   return (
     <div>
       {error && (
-        <div className="rise-in mb-5 rounded-lg border border-rose/30 bg-rose-soft px-4 py-2.5 text-sm text-rose-ink">
-          {error}
-        </div>
+        <p className="rise-in mb-5 border-l-2 border-rose/50 pl-3 text-sm text-rose-ink">{error}</p>
       )}
 
       {options.length === 0 ? (

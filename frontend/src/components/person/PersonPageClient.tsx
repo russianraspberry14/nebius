@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
 import KeyDates from "@/components/person/KeyDates";
 import NoteCapture from "@/components/person/NoteCapture";
 import NotesList from "@/components/person/NotesList";
 import FactsList from "@/components/person/FactsList";
 import PlansList from "@/components/person/PlansList";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function PersonPageClient() {
   const params = useParams<{ id: string }>();
@@ -69,7 +72,12 @@ export default function PersonPageClient() {
         &larr; Back
       </Link>
 
-      <header className="mb-8 mt-3 flex items-start justify-between">
+      <motion.header
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, ease: EASE }}
+        className="mb-8 mt-3 flex items-start justify-between"
+      >
         <div>
           <h1 className="font-display text-3xl italic tracking-tight text-ink">{person.name}</h1>
           <p className="text-sm text-ink-muted">
@@ -92,15 +100,45 @@ export default function PersonPageClient() {
             Delete person
           </button>
         </div>
-      </header>
+      </motion.header>
 
-      {error && <p className="mb-4 text-sm text-rose">{error}</p>}
+      {error && <p className="mb-4 border-l-2 border-rose/50 pl-3 text-sm text-rose-ink">{error}</p>}
 
-      <KeyDates personId={personId} keyDates={key_dates} onChange={load} />
-      <NoteCapture personId={personId} onChange={load} />
-      <FactsList facts={facts} onChange={load} />
-      <NotesList notes={notes} onChange={load} />
-      <PlansList plans={plans ?? []} />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.08, ease: EASE }}
+      >
+        <KeyDates personId={personId} keyDates={key_dates} onChange={load} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15, ease: EASE }}
+      >
+        <NoteCapture personId={personId} onChange={load} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.22, ease: EASE }}
+      >
+        <FactsList facts={facts} onChange={load} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.29, ease: EASE }}
+      >
+        <NotesList notes={notes} onChange={load} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.36, ease: EASE }}
+      >
+        <PlansList plans={plans ?? []} />
+      </motion.div>
     </div>
   );
 }

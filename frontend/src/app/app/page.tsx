@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
 import QuickCapture from "@/components/QuickCapture";
 import UpcomingPlans from "@/components/UpcomingPlans";
@@ -94,15 +94,20 @@ export default function Dashboard() {
       </motion.header>
 
       {topError && (
-        <div className="rise-in mb-6 rounded-lg border border-rose/30 bg-rose-soft px-4 py-2.5 text-sm text-rose-ink">
+        <p className="rise-in mb-6 border-l-2 border-rose/50 pl-3 text-sm text-rose-ink">
           {topError}
-        </div>
+        </p>
       )}
 
+      <AnimatePresence>
       {showForm && (
-        <form
+        <motion.form
+          initial={{ opacity: 0, y: -10, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.97 }}
+          transition={{ duration: 0.4, ease: EASE }}
           onSubmit={handleAddPerson}
-          className="rise-in mb-8 flex flex-col gap-3 rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
+          className="mb-8 flex flex-col gap-3 rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
         >
           <input
             className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
@@ -131,29 +136,30 @@ export default function Dashboard() {
           >
             {submitting ? "Saving..." : "Save person"}
           </button>
-        </form>
+        </motion.form>
       )}
+      </AnimatePresence>
 
       <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.05 }}
       >
         <QuickCapture />
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.08, ease: EASE }}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.12 }}
       >
         <UpcomingPlans />
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.14, ease: EASE }}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.18 }}
       >
         <UpcomingDates />
       </motion.div>
@@ -169,17 +175,19 @@ export default function Dashboard() {
         </p>
       )}
 
-      <motion.ul
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.2, ease: EASE }}
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-      >
-        {people?.map((p) => (
-          <li key={p.id}>
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {people?.map((p, i) => (
+          <motion.li
+            key={p.id}
+            initial={{ opacity: 0, y: 24, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.2 + i * 0.06 }}
+            whileHover={{ y: -4, scale: 1.015 }}
+            whileTap={{ scale: 0.98 }}
+          >
             <Link
               href={`/people/${p.id}`}
-              className="group flex h-full items-center gap-3 rounded-lg border border-border bg-paper-raised p-4 shadow-warm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-warm-lg"
+              className="group flex h-full items-center gap-3 rounded-xl border border-border bg-paper-raised p-4 shadow-warm transition-shadow hover:border-border-strong hover:shadow-warm-lg"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-clay/30 bg-clay-soft font-display text-base text-clay-hover">
                 {initials(p.name)}
@@ -195,9 +203,9 @@ export default function Dashboard() {
                 &rarr;
               </span>
             </Link>
-          </li>
+          </motion.li>
         ))}
-      </motion.ul>
+      </ul>
     </div>
   );
 }

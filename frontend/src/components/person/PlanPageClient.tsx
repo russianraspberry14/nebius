@@ -4,8 +4,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api, ApiError, PlanOption } from "@/lib/api";
 import PlanOptionsBoard from "@/components/plan/PlanOptionsBoard";
+import ThinkingIndicator from "@/components/ThinkingIndicator";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function PlanPageClient() {
   const params = useParams<{ id: string }>();
@@ -70,11 +74,19 @@ export default function PlanPageClient() {
         &larr; Back to {detail?.person.name ?? "profile"}
       </Link>
 
-      <h1 className="mb-7 mt-3 font-display text-3xl italic tracking-tight text-ink">
+      <motion.h1
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="mb-7 mt-3 font-display text-3xl italic tracking-tight text-ink"
+      >
         Plan an outing
-      </h1>
+      </motion.h1>
 
-      <form
+      <motion.form
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
         onSubmit={handleGenerate}
         className="mb-7 flex flex-col gap-4 rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
       >
@@ -133,12 +145,12 @@ export default function PlanPageClient() {
         >
           {generating ? "Searching and drafting…" : "Generate plan options"}
         </button>
-      </form>
+      </motion.form>
+
+      {generating && <ThinkingIndicator label="Searching places, weather, and drafting options..." />}
 
       {error && (
-        <div className="rise-in mb-5 rounded-lg border border-rose/30 bg-rose-soft px-4 py-2.5 text-sm text-rose-ink">
-          {error}
-        </div>
+        <p className="rise-in mb-5 border-l-2 border-rose/50 pl-3 text-sm text-rose-ink">{error}</p>
       )}
 
       {options && generatedFor && (

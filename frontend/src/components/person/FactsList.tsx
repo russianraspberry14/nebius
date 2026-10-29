@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { api, ApiError, Fact } from "@/lib/api";
 import { CATEGORY_COLOR, CATEGORY_LABEL } from "@/lib/constants";
 
@@ -34,9 +35,12 @@ export default function FactsList({
         </p>
       ) : (
         <ul className="flex flex-wrap gap-2">
-          {facts.map((f) => (
-            <li
+          {facts.map((f, i) => (
+            <motion.li
               key={f.id}
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 22, delay: i * 0.04 }}
               className={`group flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${CATEGORY_COLOR[f.category]}`}
             >
               <span className="text-xs font-medium opacity-70">{CATEGORY_LABEL[f.category]}</span>
@@ -48,7 +52,7 @@ export default function FactsList({
               >
                 &times;
               </button>
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}

@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
+import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError, Person, PlanChatSlots, PlanOption, QuickCaptureAmbiguous } from "@/lib/api";
 import { useSpeechRecognition } from "@/lib/useSpeechRecognition";
 import VoiceTextArea from "@/components/VoiceTextArea";
 import AmbiguousPersonPicker from "@/components/AmbiguousPersonPicker";
 import ThinkingIndicator from "@/components/ThinkingIndicator";
 import PlanOptionsBoard from "@/components/plan/PlanOptionsBoard";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 const EMPTY_SLOTS: PlanChatSlots = {
   occasion: null,
@@ -113,32 +116,50 @@ export default function PlanChat({
   } = useSpeechRecognition({ onFinalResult: handleSend });
 
   return (
-    <div className="rise-in mt-3 rounded-lg border border-border bg-paper-raised p-4 shadow-warm">
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: EASE }}
+      className="mt-4 border-t border-border pt-4"
+    >
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
+        <motion.p
+          key={personName ?? "planning"}
+          initial={{ opacity: 0, x: -6 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint"
+        >
           Planning{personName ? ` for ${personName}` : ""}
-        </p>
+        </motion.p>
         <button onClick={onCancel} className="text-xs text-ink-faint hover:text-rose">
           Cancel
         </button>
       </div>
 
-      <ul className="mb-3 flex flex-col gap-2">
-        {messages.map((m, i) => (
-          <li
-            key={i}
-            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-              m.role === "user"
-                ? "ml-auto bg-clay text-clay-ink"
-                : "bg-paper border border-border text-ink"
-            }`}
-          >
-            {m.text}
-          </li>
-        ))}
+      <ul className="mb-1 flex flex-col gap-2.5">
+        <AnimatePresence initial={false}>
+          {messages.map((m, i) => (
+            <motion.li
+              key={i}
+              layout
+              initial={{ opacity: 0, x: m.role === "user" ? 28 : -28, scale: 0.92 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${
+                m.role === "user"
+                  ? "ml-auto rounded-br-md bg-clay text-clay-ink"
+                  : "rounded-bl-md bg-clay-soft text-ink"
+              }`}
+            >
+              {m.text}
+            </motion.li>
+          ))}
+        </AnimatePresence>
       </ul>
 
-      {thinking && <ThinkingIndicator label="Thinking..." />}
+      <AnimatePresence mode="wait">
+        {thinking && <ThinkingIndicator key="thinking" label="Thinking..." />}
+      </AnimatePresence>
       {voiceError && <p className="mb-2 text-sm text-rose">{voiceError}</p>}
       {error && <p className="mb-2 text-sm text-rose">{error}</p>}
 
@@ -161,7 +182,7 @@ export default function PlanChat({
             e.preventDefault();
             handleSend(text);
           }}
-          className="flex flex-col gap-2"
+          className="mt-3 flex flex-col gap-2"
         >
           <VoiceTextArea
             value={text}
@@ -203,6 +224,6 @@ export default function PlanChat({
           </button>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }

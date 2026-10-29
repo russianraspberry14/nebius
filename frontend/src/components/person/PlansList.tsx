@@ -1,7 +1,10 @@
 "use client";
 
+import { motion } from "motion/react";
 import { Plan } from "@/lib/api";
 import { formatDate } from "@/lib/dates";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function PlansList({ plans }: { plans: Plan[] }) {
   return (
@@ -12,11 +15,14 @@ export default function PlansList({ plans }: { plans: Plan[] }) {
       {plans.length === 0 ? (
         <p className="text-sm text-ink-muted">No saved plans yet.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {plans.map((plan) => (
-            <li
+        <div className="list-group">
+          {plans.map((plan, i) => (
+            <motion.div
               key={plan.id}
-              className="rounded-lg border border-border bg-paper-raised p-3.5 shadow-warm"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.05, ease: EASE }}
+              className="px-4 py-3.5"
             >
               <div className="flex items-baseline justify-between">
                 <p className="font-display flex items-center gap-2 text-lg capitalize text-ink">
@@ -32,9 +38,9 @@ export default function PlansList({ plans }: { plans: Plan[] }) {
               <p className="mt-1 text-sm text-ink-muted">
                 {plan.stops.map((s) => s.name).join(" → ")}
               </p>
-            </li>
+            </motion.div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );

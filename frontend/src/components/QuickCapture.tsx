@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError, QuickCaptureAmbiguous, QuickCaptureResult } from "@/lib/api";
 import { useSpeechRecognition } from "@/lib/useSpeechRecognition";
 import { looksLikePlanRequest } from "@/lib/planIntent";
@@ -9,6 +10,8 @@ import AmbiguousPersonPicker from "@/components/AmbiguousPersonPicker";
 import CaptureReview from "@/components/CaptureReview";
 import ThinkingIndicator from "@/components/ThinkingIndicator";
 import PlanChat from "@/components/PlanChat";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 function isAmbiguous(detail: unknown): detail is QuickCaptureAmbiguous {
   return (
@@ -88,10 +91,25 @@ export default function QuickCapture() {
         Add information for someone / plan something good!
       </h2>
 
+      <AnimatePresence mode="wait" initial={false}>
       {planText ? (
-        <PlanChat initialText={planText} onCancel={() => setPlanText(null)} />
+        <motion.div
+          key="plan-chat"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.35, ease: EASE }}
+        >
+          <PlanChat initialText={planText} onCancel={() => setPlanText(null)} />
+        </motion.div>
       ) : (
-        <>
+        <motion.div
+          key="capture"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.35, ease: EASE }}
+        >
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <VoiceTextArea
               value={text}
@@ -132,12 +150,14 @@ export default function QuickCapture() {
           )}
 
           {result && (
-            <div className="rise-in mt-3 rounded-lg border border-border bg-paper-raised p-3">
-              <p className="text-sm text-ink-muted">
-                Added to <span className="font-medium text-ink">{result.person_name}</span>
-                &rsquo;s notes.
-              </p>
-            </div>
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 text-sm text-ink-muted"
+            >
+              Added to <span className="font-medium text-ink">{result.person_name}</span>
+              &rsquo;s notes.
+            </motion.p>
           )}
 
           {result && (
@@ -150,8 +170,9 @@ export default function QuickCapture() {
               onDone={() => setResult(null)}
             />
           )}
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
     </section>
   );
 }

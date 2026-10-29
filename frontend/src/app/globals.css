@@ -224,3 +224,31 @@ body > div {
 .rise-in {
   animation: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* A grouped, divided list (Settings.app-style) - one light outer surface
+   with hairline dividers between rows, instead of every row having its own
+   border/shadow/radius. The default "list of things" pattern app-wide. */
+.list-group {
+  border-radius: 0.875rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-paper-raised) 70%, transparent);
+  overflow: hidden;
+}
+.list-group > * + * {
+  border-top: 1px solid var(--color-border);
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.breathing-orb {
+  animation: breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  background: radial-gradient(circle at 35% 30%, var(--color-clay-hover), var(--color-clay) 70%);
+}

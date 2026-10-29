@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api, ApiError, Person } from "@/lib/api";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 /** "Who's this about?" - shown whenever a name couldn't be resolved to
  * exactly one person. Leads with the actual name matches (if any), offers
@@ -45,7 +48,12 @@ export default function AmbiguousPersonPicker({
   }
 
   return (
-    <div className="rise-in mt-3 rounded-lg border border-amber/30 bg-amber-soft p-3">
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: EASE }}
+      className="mt-4 border-l-2 border-amber/50 pl-4"
+    >
       <p className="mb-2 text-sm text-amber-ink">{message}</p>
 
       {candidates.length > 0 && (
@@ -117,6 +125,6 @@ export default function AmbiguousPersonPicker({
         </div>
       )}
       {addingError && <p className="mt-1.5 text-xs text-rose">{addingError}</p>}
-    </div>
+    </motion.div>
   );
 }

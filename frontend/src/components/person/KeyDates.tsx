@@ -1,8 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { motion } from "motion/react";
 import { api, ApiError, KeyDate } from "@/lib/api";
 import { formatDate } from "@/lib/dates";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function KeyDates({
   personId,
@@ -106,9 +109,12 @@ export default function KeyDates({
         <p className="text-sm text-ink-muted">No key dates yet.</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
-          {keyDates.map((kd) => (
-            <li
+          {keyDates.map((kd, i) => (
+            <motion.li
               key={kd.id}
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 22, delay: i * 0.05 }}
               className="flex items-center gap-2 rounded-full border border-border bg-paper-raised px-3 py-1 text-sm"
             >
               <span className="font-medium text-ink">{kd.label}</span>
@@ -121,7 +127,7 @@ export default function KeyDates({
               >
                 &times;
               </button>
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}

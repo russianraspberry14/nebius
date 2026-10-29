@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import { mutate } from "swr";
+import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError, FactProposal, KeyDateProposal } from "@/lib/api";
 import { CATEGORY_LABEL, FACT_CATEGORIES, SENTIMENTS } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
 
+const EASE = [0.16, 1, 0.3, 1] as const;
 const RECURRING_HINTS = ["birthday", "anniversary"];
 
 /** One confirm step for everything Nano proposed from a single note - facts
  * and/or a key date - so accepting what it found is a single action instead
- * of two separate cards with their own save buttons. */
+ * of two separate cards with their own save buttons. Sits directly in the
+ * page flow (a left accent marks it as "attached to what you just said")
+ * rather than inside its own boxed panel. */
 export default function CaptureReview({
   personId,
   noteId,
@@ -76,59 +80,71 @@ export default function CaptureReview({
   }
 
   return (
-    <div className="rise-in mt-3 rounded-lg border border-border bg-paper-raised p-4 shadow-warm">
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: EASE }}
+      className="mt-4 border-l-2 border-clay/40 pl-4"
+    >
       {chips.length > 0 ? (
         <>
-          <p className="mb-3 text-sm text-ink-muted">
+          <p className="mb-2.5 text-sm text-ink-muted">
             Nano proposed these facts. Edit or remove any before saving.
           </p>
-          <ul className="mb-3 flex flex-col gap-2">
-            {chips.map((chip, i) => (
-              <li
-                key={i}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-paper p-2"
-              >
-                <select
-                  className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
-                  value={chip.category}
-                  onChange={(e) =>
-                    updateChip(i, { category: e.target.value as FactProposal["category"] })
-                  }
+          <ul className="mb-3 flex flex-col">
+            <AnimatePresence initial={false}>
+              {chips.map((chip, i) => (
+                <motion.li
+                  key={i}
+                  layout
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12, height: 0, marginTop: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  className="flex flex-wrap items-center gap-2 border-b border-border py-2 first:pt-0 last:border-b-0"
                 >
-                  {FACT_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {CATEGORY_LABEL[c]}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="min-w-40 flex-1 rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
-                  value={chip.value}
-                  onChange={(e) => updateChip(i, { value: e.target.value })}
-                />
-                <select
-                  className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
-                  value={chip.sentiment ?? "neutral"}
-                  onChange={(e) =>
-                    updateChip(i, { sentiment: e.target.value as FactProposal["sentiment"] })
-                  }
-                >
-                  {SENTIMENTS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeChip(i)}
-                  className="ml-auto text-ink-faint transition-colors hover:text-rose"
-                  aria-label="Remove this fact"
-                >
-                  &times;
-                </button>
-              </li>
-            ))}
+                  <select
+                    className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
+                    value={chip.category}
+                    onChange={(e) =>
+                      updateChip(i, { category: e.target.value as FactProposal["category"] })
+                    }
+                  >
+                    {FACT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {CATEGORY_LABEL[c]}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="min-w-40 flex-1 rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
+                    value={chip.value}
+                    onChange={(e) => updateChip(i, { value: e.target.value })}
+                  />
+                  <select
+                    className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
+                    value={chip.sentiment ?? "neutral"}
+                    onChange={(e) =>
+                      updateChip(i, { sentiment: e.target.value as FactProposal["sentiment"] })
+                    }
+                  >
+                    {SENTIMENTS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeChip(i)}
+                    className="ml-auto text-ink-faint transition-colors hover:text-rose"
+                    aria-label="Remove this fact"
+                  >
+                    &times;
+                  </button>
+                </motion.li>
+              ))}
+            </AnimatePresence>
           </ul>
         </>
       ) : (
@@ -136,19 +152,19 @@ export default function CaptureReview({
       )}
 
       {initialKeyDate && (
-        <div className="mb-3 rounded-lg border border-sage/30 bg-sage-soft p-3">
+        <div className="mb-3">
           <label className="mb-2 flex items-center gap-2 text-sm text-sage-ink">
             <input
               type="checkbox"
               checked={includeDate}
               onChange={(e) => setIncludeDate(e.target.checked)}
-              className="accent-clay"
+              className="accent-sage"
             />
             Also save as a key date: <strong>{formatDate(dateValue)}</strong>
           </label>
           <div className="flex flex-wrap items-center gap-2 pl-6">
             <input
-              className="min-w-32 flex-1 rounded border border-border bg-paper px-2 py-1 text-sm text-ink disabled:opacity-50"
+              className="min-w-32 flex-1 rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink disabled:opacity-50"
               value={dateLabel}
               onChange={(e) => setDateLabel(e.target.value)}
               placeholder="Label"
@@ -156,7 +172,7 @@ export default function CaptureReview({
             />
             <input
               type="date"
-              className="rounded border border-border bg-paper px-2 py-1 text-sm text-ink disabled:opacity-50"
+              className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink disabled:opacity-50"
               value={dateValue}
               onChange={(e) => setDateValue(e.target.value)}
               disabled={!includeDate}
@@ -183,6 +199,6 @@ export default function CaptureReview({
       >
         {saving ? "Saving..." : saveLabel}
       </button>
-    </div>
+    </motion.div>
   );
 }

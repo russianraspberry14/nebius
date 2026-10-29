@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Schibsted_Grotesk } from "next/font/google";
+import { Suspense } from "react";
 import AuthProvider from "@/components/AuthProvider";
+import PageTransition from "@/components/PageTransition";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -26,7 +28,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${fraunces.variable} ${schibsted.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <Suspense fallback={null}>
+            <PageTransition>{children}</PageTransition>
+          </Suspense>
+        </AuthProvider>
       </body>
     </html>
   );

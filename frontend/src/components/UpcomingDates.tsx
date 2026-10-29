@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/dates";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function UpcomingDates() {
   const { data: dates } = useSWR("upcoming-dates", () => api.getUpcomingDates());
@@ -19,11 +22,14 @@ export default function UpcomingDates() {
       <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
         Start planning for
       </h2>
-      <ul className="flex flex-col gap-2">
-        {unplanned.map((d) => (
-          <li
+      <div className="list-group">
+        {unplanned.map((d, i) => (
+          <motion.div
             key={d.key_date_id}
-            className="flex items-center justify-between rounded-lg border border-border bg-paper-raised px-4 py-3 shadow-warm"
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.45, delay: i * 0.06, ease: EASE }}
+            className="flex items-center justify-between gap-3 px-4 py-3.5"
           >
             <p className="text-sm text-ink-muted">
               <span className="font-display text-base text-ink">
@@ -42,9 +48,9 @@ export default function UpcomingDates() {
             >
               Plan this now
             </Link>
-          </li>
+          </motion.div>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }
