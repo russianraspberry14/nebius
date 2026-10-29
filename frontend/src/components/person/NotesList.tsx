@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api, ApiError, FactCategory, Note, Sentiment } from "@/lib/api";
 import { CATEGORY_LABEL, FACT_CATEGORIES, SENTIMENTS } from "@/lib/constants";
+import { formatDate } from "@/lib/dates";
 
 function ManualFactForm({ noteId, onSaved }: { noteId: number; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
@@ -128,9 +129,7 @@ export default function NotesList({
                   Delete
                 </button>
               </div>
-              <p className="mt-1.5 text-xs text-ink-faint">
-                {new Date(n.created_at.replace(" ", "T") + "Z").toLocaleDateString()}
-              </p>
+              <p className="mt-1.5 text-xs text-ink-faint">{formatDate(n.created_at)}</p>
               <ManualFactForm noteId={n.id} onSaved={onChange} />
             </li>
           ))}

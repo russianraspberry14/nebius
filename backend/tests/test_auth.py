@@ -1,10 +1,12 @@
 def test_signup_then_me(raw_client):
     res = raw_client.post(
-        "/auth/signup", json={"email": "new@example.com", "password": "correcthorse123"}
+        "/auth/signup",
+        json={"name": "New User", "email": "new@example.com", "password": "correcthorse123"},
     )
     assert res.status_code == 201
     body = res.json()
     assert body["user"]["email"] == "new@example.com"
+    assert body["user"]["name"] == "New User"
     assert "hashed_password" not in body["user"]
     token = body["access_token"]
 
@@ -14,25 +16,42 @@ def test_signup_then_me(raw_client):
 
 
 def test_signup_duplicate_email_rejected(raw_client):
-    raw_client.post("/auth/signup", json={"email": "dup@example.com", "password": "correcthorse123"})
-    res = raw_client.post("/auth/signup", json={"email": "dup@example.com", "password": "somethingelse"})
+    raw_client.post(
+        "/auth/signup", json={"name": "Dup", "email": "dup@example.com", "password": "correcthorse123"}
+    )
+    res = raw_client.post(
+        "/auth/signup", json={"name": "Dup", "email": "dup@example.com", "password": "somethingelse"}
+    )
     assert res.status_code == 409
 
 
 def test_signup_short_password_rejected(raw_client):
-    res = raw_client.post("/auth/signup", json={"email": "short@example.com", "password": "short"})
+    res = raw_client.post(
+        "/auth/signup", json={"name": "Short", "email": "short@example.com", "password": "short"}
+    )
+    assert res.status_code == 422
+
+
+def test_signup_blank_name_rejected(raw_client):
+    res = raw_client.post(
+        "/auth/signup", json={"name": "", "email": "blank@example.com", "password": "correcthorse123"}
+    )
     assert res.status_code == 422
 
 
 def test_login_success(raw_client):
-    raw_client.post("/auth/signup", json={"email": "login@example.com", "password": "correcthorse123"})
+    raw_client.post(
+        "/auth/signup", json={"name": "Login", "email": "login@example.com", "password": "correcthorse123"}
+    )
     res = raw_client.post("/auth/login", json={"email": "login@example.com", "password": "correcthorse123"})
     assert res.status_code == 200
     assert res.json()["token_type"] == "bearer"
 
 
 def test_login_wrong_password_rejected(raw_client):
-    raw_client.post("/auth/signup", json={"email": "wrongpw@example.com", "password": "correcthorse123"})
+    raw_client.post(
+        "/auth/signup", json={"name": "WrongPw", "email": "wrongpw@example.com", "password": "correcthorse123"}
+    )
     res = raw_client.post("/auth/login", json={"email": "wrongpw@example.com", "password": "nope"})
     assert res.status_code == 401
 
@@ -56,7 +75,8 @@ def test_people_are_isolated_between_users(client, raw_client):
     person = client.post("/people", json={"name": "Mine", "relationship": "friend"}).json()
 
     signup = raw_client.post(
-        "/auth/signup", json={"email": "other-user@example.com", "password": "correcthorse123"}
+        "/auth/signup",
+        json={"name": "Other", "email": "other-user@example.com", "password": "correcthorse123"},
     )
     other_token = signup.json()["access_token"]
     other_headers = {"Authorization": f"Bearer {other_token}"}

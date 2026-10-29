@@ -7,7 +7,7 @@ candidates against a person's facts and drafts a cited plan.
 
 import json
 
-from app.config import SUPER_MODEL_ID
+from app.config import SEATGEEK_CLIENT_ID, SUPER_MODEL_ID, TICKETMASTER_API_KEY
 from app.json_utils import parse_structured_json
 from app.models import CandidateSearchResult
 from app.nemotron import get_client
@@ -22,14 +22,13 @@ MAX_TOOL_CALLS = 6
 # truncate before the real reply (or tool call) ever appears.
 COMPLETION_MAX_TOKENS = 4096
 
-TOOL_FUNCTIONS = {
+BASE_TOOL_FUNCTIONS = {
     "geocode": geocode,
     "get_weather": get_weather,
     "search_places": search_places,
-    "search_events": search_events,
 }
 
-TOOL_SCHEMAS = [
+BASE_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
@@ -75,26 +74,40 @@ TOOL_SCHEMAS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_events",
-            "description": "Search for concerts, shows, or sporting events in an area and date range.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "area": {"type": "string"},
-                    "date_range": {
-                        "type": "string",
-                        "description": "YYYY-MM-DD, or YYYY-MM-DD..YYYY-MM-DD for a range",
-                    },
-                    "keywords": {"type": "string"},
+]
+
+EVENTS_TOOL_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "search_events",
+        "description": "Search for concerts, shows, or sporting events in an area and date range.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "area": {"type": "string"},
+                "date_range": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD, or YYYY-MM-DD..YYYY-MM-DD for a range",
                 },
-                "required": ["area", "date_range"],
+                "keywords": {"type": "string"},
             },
+            "required": ["area", "date_range"],
         },
     },
-]
+}
+
+
+def _active_tools() -> tuple[dict, list[dict]]:
+    """Places and weather/geocode need no key; events needs one of
+    TICKETMASTER_API_KEY / SEATGEEK_CLIENT_ID. Rather than advertise
+    search_events and let it error on every call when neither is set, just
+    don't offer it - a plan can be generated with places + weather alone."""
+    functions = dict(BASE_TOOL_FUNCTIONS)
+    schemas = list(BASE_TOOL_SCHEMAS)
+    if TICKETMASTER_API_KEY or SEATGEEK_CLIENT_ID:
+        functions["search_events"] = search_events
+        schemas.append(EVENTS_TOOL_SCHEMA)
+    return functions, schemas
 
 CANDIDATE_SEARCH_SYSTEM_PROMPT = """You are gathering raw candidates for an outing by calling the \
 available tools (geocode, get_weather, search_places, search_events). You do NOT write the final \
@@ -115,8 +128,8 @@ no markdown fences, matching:
 """
 
 
-def _dispatch_tool(name: str, arguments_json: str):
-    fn = TOOL_FUNCTIONS.get(name)
+def _dispatch_tool(name: str, arguments_json: str, tool_functions: dict):
+    fn = tool_functions.get(name)
     if fn is None:
         return {"error": f"Unknown tool '{name}'"}
     try:
@@ -159,13 +172,14 @@ def run_candidate_search(
         {"role": "system", "content": CANDIDATE_SEARCH_SYSTEM_PROMPT},
         {"role": "user", "content": user_context},
     ]
+    tool_functions, tool_schemas = _active_tools()
 
     tool_calls_made = 0
     while tool_calls_made < MAX_TOOL_CALLS:
         response = client.chat.completions.create(
             model=SUPER_MODEL_ID,
             messages=messages,
-            tools=TOOL_SCHEMAS,
+            tools=tool_schemas,
             tool_choice="auto",
             temperature=0,
             max_tokens=COMPLETION_MAX_TOKENS,
@@ -184,7 +198,7 @@ def run_candidate_search(
         )
         for tc in message.tool_calls:
             tool_calls_made += 1
-            result = _dispatch_tool(tc.function.name, tc.function.arguments)
+            result = _dispatch_tool(tc.function.name, tc.function.arguments, tool_functions)
             messages.append(
                 {"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result)}
             )

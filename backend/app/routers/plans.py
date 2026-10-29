@@ -1,3 +1,5 @@
+from datetime import date as Date
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
@@ -9,6 +11,7 @@ from app.models import (
     PlanSaveRequest,
     PlanStop,
     StopReviseRequest,
+    UpcomingPlanOut,
 )
 from app.planner import generate_plan_options, revise_stop
 from app.tool_loop import run_candidate_search
@@ -68,6 +71,32 @@ def save_plan(data: PlanSaveRequest, user_id: int = Depends(require_user)):
         budget=data.budget,
         stops=data.stops,
     )
+
+
+@router.get("/plans/upcoming", response_model=list[UpcomingPlanOut])
+def list_upcoming_plans(user_id: int = Depends(require_user)):
+    """Every draft/saved plan dated today or later, across all of this user's
+    people - the dashboard's "Plans coming up" section."""
+    plans = crud.list_upcoming_plans(user_id, Date.today().isoformat())
+    results = []
+    for p in plans:
+        names = []
+        for person_id in p.person_ids:
+            person = crud.get_person(person_id, user_id)
+            if person:
+                names.append(person.name)
+        results.append(
+            UpcomingPlanOut(
+                id=p.id,
+                occasion=p.occasion,
+                date=p.date,
+                person_ids=p.person_ids,
+                person_names=names,
+                stops=p.stops,
+                status=p.status,
+            )
+        )
+    return results
 
 
 @router.get("/people/{person_id}/plans", response_model=list[PlanOut])

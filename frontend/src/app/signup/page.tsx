@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api";
 export default function SignupPage() {
   const router = useRouter();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +17,10 @@ export default function SignupPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!name.trim()) {
+      setError("What should we call you?");
+      return;
+    }
     if (password.length < 8) {
       setError("Password needs to be at least 8 characters.");
       return;
@@ -23,7 +28,7 @@ export default function SignupPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await api.signup(email, password);
+      await api.signup(name.trim(), email, password);
       // Registration doesn't itself create a NextAuth session - sign in
       // right after so the new account lands straight in the app.
       const result = await signIn("credentials", { email, password, redirect: false });
@@ -54,6 +59,17 @@ export default function SignupPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1 text-sm text-ink-muted">
+          Name
+          <input
+            type="text"
+            autoComplete="name"
+            className="rounded-md border border-border bg-paper-raised px-3 py-2 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </label>
         <label className="flex flex-col gap-1 text-sm text-ink-muted">
           Email
           <input

@@ -1,6 +1,7 @@
 "use client";
 
 import { Plan } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 
 export default function PlansList({ plans }: { plans: Plan[] }) {
   return (
@@ -26,7 +27,7 @@ export default function PlansList({ plans }: { plans: Plan[] }) {
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-ink-muted">{plan.date}</p>
+                <p className="text-sm text-ink-muted">{formatDate(plan.date)}</p>
               </div>
               <p className="mt-1 text-sm text-ink-muted">
                 {plan.stops.map((s) => s.name).join(" → ")}

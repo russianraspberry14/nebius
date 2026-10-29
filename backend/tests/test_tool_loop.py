@@ -31,8 +31,8 @@ def no_model_check(monkeypatch):
 def test_run_candidate_search_dispatches_tool_calls_and_parses_final_json(monkeypatch, no_model_check):
     monkeypatch.setattr(
         tool_loop,
-        "TOOL_FUNCTIONS",
-        {"search_places": lambda **kwargs: [{"name": "Clayworks", "source": "test"}]},
+        "_active_tools",
+        lambda: ({"search_places": lambda **kwargs: [{"name": "Clayworks", "source": "test"}]}, []),
     )
 
     calls = []
@@ -80,8 +80,8 @@ def test_run_candidate_search_respects_tool_call_cap(monkeypatch, no_model_check
     monkeypatch.setattr(tool_loop, "MAX_TOOL_CALLS", 2)
     monkeypatch.setattr(
         tool_loop,
-        "TOOL_FUNCTIONS",
-        {"search_places": lambda **kwargs: [{"name": "Somewhere", "source": "test"}]},
+        "_active_tools",
+        lambda: ({"search_places": lambda **kwargs: [{"name": "Somewhere", "source": "test"}]}, []),
     )
 
     calls = []
@@ -106,14 +106,30 @@ def test_run_candidate_search_respects_tool_call_cap(monkeypatch, no_model_check
     assert len(forced_final_calls) == 1
 
 
-def test_tool_dispatch_errors_are_returned_not_raised(monkeypatch, no_model_check):
+def test_tool_dispatch_errors_are_returned_not_raised(no_model_check):
     def boom(**kwargs):
         raise ValueError("No events source configured.")
 
-    monkeypatch.setattr(tool_loop, "TOOL_FUNCTIONS", {"search_events": boom})
-
-    result = tool_loop._dispatch_tool("search_events", json.dumps({"area": "Austin", "date_range": "2026-11-12"}))
+    result = tool_loop._dispatch_tool(
+        "search_events", json.dumps({"area": "Austin", "date_range": "2026-11-12"}), {"search_events": boom}
+    )
     assert result == {"error": "No events source configured."}
+
+
+def test_active_tools_excludes_events_without_a_key(monkeypatch):
+    monkeypatch.setattr(tool_loop, "TICKETMASTER_API_KEY", "")
+    monkeypatch.setattr(tool_loop, "SEATGEEK_CLIENT_ID", "")
+    functions, schemas = tool_loop._active_tools()
+    assert "search_events" not in functions
+    assert all(s["function"]["name"] != "search_events" for s in schemas)
+
+
+def test_active_tools_includes_events_with_a_key(monkeypatch):
+    monkeypatch.setattr(tool_loop, "TICKETMASTER_API_KEY", "fake-key")
+    monkeypatch.setattr(tool_loop, "SEATGEEK_CLIENT_ID", "")
+    functions, schemas = tool_loop._active_tools()
+    assert "search_events" in functions
+    assert any(s["function"]["name"] == "search_events" for s in schemas)
 
 
 def test_without_super_model_id_raises(monkeypatch):

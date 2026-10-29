@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from app.models import CandidateSearchResult, PlanGenerateResult
 
 
@@ -73,6 +75,62 @@ def test_save_and_list_plan(client):
     res = client.get(f"/people/{person['id']}/plans")
     assert res.status_code == 200
     assert len(res.json()) == 1
+
+
+def test_upcoming_plans_returns_future_plans_with_person_names(client):
+    person = _make_person(client, "Maya")
+    future = (date.today() + timedelta(days=5)).isoformat()
+    past = (date.today() - timedelta(days=5)).isoformat()
+
+    client.post(
+        "/plans",
+        json={
+            "person_ids": [person["id"]],
+            "occasion": "birthday",
+            "date": future,
+            "stops": [{"name": "Clayworks", "cited_fact_ids": []}],
+        },
+    )
+    client.post(
+        "/plans",
+        json={
+            "person_ids": [person["id"]],
+            "occasion": "old outing",
+            "date": past,
+            "stops": [{"name": "Somewhere", "cited_fact_ids": []}],
+        },
+    )
+
+    res = client.get("/plans/upcoming")
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body) == 1  # the past-dated plan is excluded
+    assert body[0]["occasion"] == "birthday"
+    assert body[0]["person_names"] == ["Maya"]
+
+
+def test_upcoming_plans_isolated_between_users(client, raw_client):
+    person = _make_person(client, "Maya")
+    future = (date.today() + timedelta(days=5)).isoformat()
+    client.post(
+        "/plans",
+        json={
+            "person_ids": [person["id"]],
+            "occasion": "birthday",
+            "date": future,
+            "stops": [{"name": "Clayworks", "cited_fact_ids": []}],
+        },
+    )
+
+    signup = raw_client.post(
+        "/auth/signup",
+        json={"name": "Other", "email": "upcoming-other@example.com", "password": "correcthorse123"},
+    )
+    other_headers = {"Authorization": f"Bearer {signup.json()['access_token']}"}
+
+    res = raw_client.get("/plans/upcoming", headers=other_headers)
+    assert res.status_code == 200
+    assert res.json() == []
 
 
 def test_revise_stop_returns_grounded_replacement(client, monkeypatch):

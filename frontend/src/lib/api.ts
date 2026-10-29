@@ -123,6 +123,16 @@ export interface ReviseStopRequest {
   budget?: string;
 }
 
+export interface UpcomingPlan {
+  id: number;
+  occasion: string;
+  date: string;
+  person_ids: number[];
+  person_names: string[];
+  stops: PlanStop[];
+  status: string;
+}
+
 class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -215,16 +225,18 @@ export const api = {
 
   getUpcomingDates: () => request<UpcomingDate[]>("/dashboard/upcoming-dates"),
 
+  getUpcomingPlans: () => request<UpcomingPlan[]>("/plans/upcoming"),
+
   reviseStop: (data: ReviseStopRequest) =>
     request<PlanStop>("/plans/revise-stop", { method: "POST", body: JSON.stringify(data) }),
 
   // Registration isn't a NextAuth concept - it goes straight to the backend,
   // which returns a token the caller then uses with next-auth's signIn()
   // (credentials provider) to establish a session.
-  signup: (email: string, password: string) =>
+  signup: (name: string, email: string, password: string) =>
     request<{ access_token: string }>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ name, email, password }),
     }),
 };
 

@@ -14,6 +14,7 @@ from app.auth import hash_password  # noqa: E402
 from app.db import init_db  # noqa: E402
 from app.models import FactConfirm, KeyDateCreate, PlanStop  # noqa: E402
 
+DEMO_NAME = "Judge"
 DEMO_EMAIL = "judge@gmail.com"
 DEMO_PASSWORD = "judge123"
 
@@ -23,7 +24,7 @@ def seed():
 
     demo_user = crud.get_user_by_email_with_hash(DEMO_EMAIL)
     if demo_user is None:
-        demo = crud.create_user(DEMO_EMAIL, hash_password(DEMO_PASSWORD))
+        demo = crud.create_user(DEMO_NAME, DEMO_EMAIL, hash_password(DEMO_PASSWORD))
         print(f"Created demo account: {DEMO_EMAIL} / {DEMO_PASSWORD}")
     else:
         demo = crud.get_user(demo_user["id"])

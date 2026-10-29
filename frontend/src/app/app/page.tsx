@@ -7,9 +7,16 @@ import { FormEvent, useState } from "react";
 import useSWR from "swr";
 import { motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
+import UpcomingPlans from "@/components/UpcomingPlans";
 import UpcomingDates from "@/components/UpcomingDates";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -45,9 +52,10 @@ export default function Dashboard() {
   }
 
   const topError = error ?? (loadError instanceof ApiError ? loadError.message : loadError ? "Could not reach the API." : null);
+  const ownerName = session?.user?.name;
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-14">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-14">
       <motion.header
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -62,7 +70,7 @@ export default function Dashboard() {
             Kindred
           </Link>
           <h1 className="font-display text-3xl italic tracking-tight text-ink">
-            Your people
+            {ownerName ? `${ownerName}’s circle` : "Your circle"}
           </h1>
           {session?.user?.email && (
             <p className="mt-1 text-sm text-ink-faint">{session.user.email}</p>
@@ -128,7 +136,15 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
+        transition={{ duration: 0.6, delay: 0.08, ease: EASE }}
+      >
+        <UpcomingPlans />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.14, ease: EASE }}
       >
         <UpcomingDates />
       </motion.div>
@@ -148,22 +164,25 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2, ease: EASE }}
-        className="flex flex-col gap-2.5"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
         {people?.map((p) => (
           <li key={p.id}>
             <Link
               href={`/people/${p.id}`}
-              className="group flex items-center justify-between rounded-lg border border-border bg-paper-raised px-4 py-3.5 shadow-warm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-warm-lg"
+              className="group flex h-full items-center gap-3 rounded-lg border border-border bg-paper-raised p-4 shadow-warm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-warm-lg"
             >
-              <div>
-                <p className="font-display text-lg text-ink">{p.name}</p>
-                <p className="text-sm text-ink-muted">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-clay/30 bg-clay-soft font-display text-base text-clay-hover">
+                {initials(p.name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-display text-lg text-ink">{p.name}</p>
+                <p className="truncate text-sm text-ink-muted">
                   {p.relationship}
                   {p.home_city ? ` · ${p.home_city}` : ""}
                 </p>
               </div>
-              <span className="text-clay transition-transform group-hover:translate-x-1">
+              <span className="shrink-0 text-clay transition-transform group-hover:translate-x-1">
                 &rarr;
               </span>
             </Link>

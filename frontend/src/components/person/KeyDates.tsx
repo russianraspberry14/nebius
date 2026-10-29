@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { api, ApiError, KeyDate } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 
 export default function KeyDates({
   personId,
@@ -111,7 +112,7 @@ export default function KeyDates({
               className="flex items-center gap-2 rounded-full border border-border bg-paper-raised px-3 py-1 text-sm"
             >
               <span className="font-medium text-ink">{kd.label}</span>
-              <span className="text-ink-muted">{kd.date}</span>
+              <span className="text-ink-muted">{formatDate(kd.date)}</span>
               {kd.recurring && <span className="text-xs text-ink-faint">(yearly)</span>}
               <button
                 onClick={() => handleDelete(kd.id)}

@@ -32,6 +32,7 @@ export const authOptions: NextAuthOptions = {
         // What's returned here becomes `user` in the jwt() callback below.
         return {
           id: String(body.user.id),
+          name: body.user.name as string,
           email: body.user.email,
           accessToken: body.access_token as string,
         };
@@ -42,11 +43,13 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.accessToken = user.accessToken;
+        token.name = user.name;
       }
       return token;
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken as string;
+      if (session.user) session.user.name = token.name as string;
       return session;
     },
   },

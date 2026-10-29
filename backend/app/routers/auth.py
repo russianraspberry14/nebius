@@ -11,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def signup(data: SignupRequest):
     if crud.email_taken(data.email):
         raise HTTPException(status_code=409, detail="An account with that email already exists.")
-    user = crud.create_user(data.email, hash_password(data.password))
+    user = crud.create_user(data.name, data.email, hash_password(data.password))
     token = create_access_token(user.id)
     return TokenOut(access_token=token, user=user)
 

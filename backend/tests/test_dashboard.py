@@ -30,7 +30,7 @@ def test_upcoming_dates_empty_when_no_people(tool_db, test_user_id):
 
 
 def test_upcoming_dates_only_shows_the_requesting_users_people(tool_db, test_user_id):
-    other_user = crud.create_user("other@example.com", "not-a-real-hash")
+    other_user = crud.create_user("Other", "other@example.com", "not-a-real-hash")
     other_person = crud.create_person(other_user.id, "Not Mine", "friend", None)
     crud.create_key_date(
         other_person.id, KeyDateCreate(label="Birthday", date="2020-11-12", recurring=True)

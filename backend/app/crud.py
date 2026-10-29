@@ -55,12 +55,12 @@ def _row_to_user(row: sqlite3.Row) -> UserOut:
 
 # ---- User ----
 
-def create_user(email: str, hashed_password: str) -> UserOut:
+def create_user(name: str, email: str, hashed_password: str) -> UserOut:
     conn = get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO user (email, hashed_password) VALUES (?, ?)",
-            (email.lower(), hashed_password),
+            "INSERT INTO user (name, email, hashed_password) VALUES (?, ?, ?)",
+            (name, email.lower(), hashed_password),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM user WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -369,6 +369,26 @@ def list_plans(person_id: int) -> list[PlanOut]:
         rows = conn.execute("SELECT * FROM plan ORDER BY created_at DESC").fetchall()
         plans = [_row_to_plan(r) for r in rows]
         return [p for p in plans if person_id in p.person_ids]
+    finally:
+        conn.close()
+
+
+def list_upcoming_plans(user_id: int, today_iso: str) -> list[PlanOut]:
+    """Every plan (draft or saved) for any of this user's people, dated today
+    or later, soonest first. For the dashboard's "Plans coming up"."""
+    conn = get_connection()
+    try:
+        my_person_ids = {
+            row["id"]
+            for row in conn.execute("SELECT id FROM person WHERE user_id = ?", (user_id,)).fetchall()
+        }
+        if not my_person_ids:
+            return []
+        rows = conn.execute(
+            "SELECT * FROM plan WHERE date >= ? ORDER BY date ASC", (today_iso,)
+        ).fetchall()
+        plans = [_row_to_plan(r) for r in rows]
+        return [p for p in plans if my_person_ids & set(p.person_ids)]
     finally:
         conn.close()
 

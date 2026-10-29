@@ -9,6 +9,7 @@ Sentiment = Literal["positive", "negative", "neutral"]
 # ---- Auth ----
 
 class SignupRequest(BaseModel):
+    name: str = Field(min_length=1)
     email: EmailStr
     password: str = Field(min_length=8)
 
@@ -20,6 +21,7 @@ class LoginRequest(BaseModel):
 
 class UserOut(BaseModel):
     id: int
+    name: str
     email: str
     created_at: str
 
@@ -224,6 +226,18 @@ class PlanOut(BaseModel):
     stops: list[PlanStop]
     status: str
     created_at: str
+
+
+class UpcomingPlanOut(BaseModel):
+    """A plan (draft or saved) with a today-or-later date, enriched with the
+    names of the people it's for - for the dashboard's "Plans coming up"."""
+    id: int
+    occasion: str
+    date: str
+    person_ids: list[int]
+    person_names: list[str]
+    stops: list[PlanStop]
+    status: str
 
 
 class StopReviseRequest(BaseModel):
