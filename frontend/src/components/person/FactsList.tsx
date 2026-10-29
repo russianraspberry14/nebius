@@ -23,13 +23,13 @@ export default function FactsList({
   }
 
   return (
-    <section className="mb-6">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+    <section className="mb-7">
+      <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
         Confirmed facts
       </h2>
-      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-2 text-sm text-rose">{error}</p>}
       {facts.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-ink-muted">
           Nothing confirmed yet - accepted facts from notes will show up here.
         </p>
       ) : (

@@ -43,10 +43,10 @@ export default function PersonPageClient() {
   if (loadError && !detail) {
     return (
       <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+        <Link href="/" className="text-sm text-ink-muted hover:text-clay">
           &larr; Back
         </Link>
-        <p className="mt-4 text-sm text-red-600 dark:text-red-400">
+        <p className="mt-4 text-sm text-rose">
           {loadError instanceof ApiError ? loadError.message : "Could not reach the API."}
         </p>
       </div>
@@ -56,7 +56,7 @@ export default function PersonPageClient() {
   if (!detail) {
     return (
       <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-        <p className="text-sm text-zinc-500">Loading...</p>
+        <p className="text-sm text-ink-muted">Loading...</p>
       </div>
     );
   }
@@ -64,41 +64,37 @@ export default function PersonPageClient() {
   const { person, key_dates, notes, facts } = detail;
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-      <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-14">
+      <Link href="/" className="text-sm text-ink-muted transition-colors hover:text-clay">
         &larr; Back
       </Link>
 
-      <header className="mb-6 mt-2 flex items-start justify-between">
+      <header className="mb-8 mt-3 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {person.name}
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="font-display text-3xl italic tracking-tight text-ink">{person.name}</h1>
+          <p className="text-sm text-ink-muted">
             {person.relationship}
             {person.home_city ? ` · ${person.home_city}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Link
             href={`/people/${personId}/plan`}
-            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900"
+            className="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
           >
             Plan an outing
           </Link>
           <button
             onClick={handleDeletePerson}
             disabled={deleting}
-            className="text-sm text-zinc-400 hover:text-red-600 disabled:opacity-50"
+            className="text-sm text-ink-faint transition-colors hover:text-rose disabled:opacity-50"
           >
             Delete person
           </button>
         </div>
       </header>
 
-      {error && (
-        <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="mb-4 text-sm text-rose">{error}</p>}
 
       <KeyDates personId={personId} keyDates={key_dates} onChange={load} />
       <NoteCapture personId={personId} onChange={load} />

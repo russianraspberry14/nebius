@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
 import UpcomingDates from "@/components/UpcomingDates";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Home() {
   const { data: people, error: loadError, mutate } = useSWR("people", () => api.listPeople());
@@ -42,26 +45,32 @@ export default function Home() {
   const topError = error ?? (loadError instanceof ApiError ? loadError.message : loadError ? "Could not reach the API." : null);
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-      <header className="mb-8 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-14">
+      <motion.header
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: EASE }}
+        className="mb-10 flex items-end justify-between"
+      >
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <p className="mb-1 text-xs font-medium uppercase tracking-[0.2em] text-clay">
             Kindred
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            A private notebook for being thoughtful.
           </p>
+          <h1 className="font-display text-4xl italic tracking-tight text-ink">
+            A notebook for{" "}
+            <span className="not-italic text-clay">being thoughtful</span>
+          </h1>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="shrink-0 rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97]"
         >
           {showForm ? "Cancel" : "Add person"}
         </button>
-      </header>
+      </motion.header>
 
       {topError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <div className="rise-in mb-6 rounded-lg border border-rose/30 bg-rose-soft px-4 py-2.5 text-sm text-rose-ink">
           {topError}
         </div>
       )}
@@ -69,24 +78,24 @@ export default function Home() {
       {showForm && (
         <form
           onSubmit={handleAddPerson}
-          className="mb-8 flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+          className="rise-in mb-8 flex flex-col gap-3 rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
         >
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
             placeholder="Relationship (partner, friend, sibling...)"
             value={relationship}
             onChange={(e) => setRelationship(e.target.value)}
             required
           />
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
             placeholder="Home city (optional)"
             value={homeCity}
             onChange={(e) => setHomeCity(e.target.value)}
@@ -94,44 +103,57 @@ export default function Home() {
           <button
             type="submit"
             disabled={submitting}
-            className="self-start rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+            className="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
           >
             {submitting ? "Saving..." : "Save person"}
           </button>
         </form>
       )}
 
-      <UpcomingDates />
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
+      >
+        <UpcomingDates />
+      </motion.div>
 
       {people === undefined && !topError && (
-        <p className="text-sm text-zinc-500">Loading...</p>
+        <p className="text-sm text-ink-muted">Loading...</p>
       )}
 
       {people !== undefined && people.length === 0 && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-ink-muted">
           No one here yet. Add a person to start logging notes about them.
         </p>
       )}
 
-      <ul className="flex flex-col gap-2">
+      <motion.ul
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2, ease: EASE }}
+        className="flex flex-col gap-2.5"
+      >
         {people?.map((p) => (
           <li key={p.id}>
             <Link
               href={`/people/${p.id}`}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+              className="group flex items-center justify-between rounded-lg border border-border bg-paper-raised px-4 py-3.5 shadow-warm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-warm-lg"
             >
               <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">{p.name}</p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="font-display text-lg text-ink">{p.name}</p>
+                <p className="text-sm text-ink-muted">
                   {p.relationship}
                   {p.home_city ? ` · ${p.home_city}` : ""}
                 </p>
               </div>
-              <span className="text-zinc-400">&rarr;</span>
+              <span className="text-clay transition-transform group-hover:translate-x-1">
+                &rarr;
+              </span>
             </Link>
           </li>
         ))}
-      </ul>
+      </motion.ul>
     </div>
   );
 }

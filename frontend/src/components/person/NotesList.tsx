@@ -32,7 +32,7 @@ function ManualFactForm({ noteId, onSaved }: { noteId: number; onSaved: () => vo
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        className="mt-1.5 text-xs font-medium text-ink-faint transition-colors hover:text-clay"
       >
         + Add fact manually
       </button>
@@ -42,7 +42,7 @@ function ManualFactForm({ noteId, onSaved }: { noteId: number; onSaved: () => vo
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <select
-        className="rounded border border-zinc-300 bg-transparent px-2 py-1 text-xs dark:border-zinc-700"
+        className="rounded border border-border bg-paper px-2 py-1 text-xs text-ink"
         value={category}
         onChange={(e) => setCategory(e.target.value as FactCategory)}
       >
@@ -53,13 +53,13 @@ function ManualFactForm({ noteId, onSaved }: { noteId: number; onSaved: () => vo
         ))}
       </select>
       <input
-        className="min-w-32 flex-1 rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+        className="min-w-32 flex-1 rounded border border-border bg-paper px-2 py-1 text-xs text-ink"
         placeholder="e.g. wants to try pottery"
         value={value}
         onChange={(e) => setValue(e.target.value)}
       />
       <select
-        className="rounded border border-zinc-300 bg-transparent px-2 py-1 text-xs dark:border-zinc-700"
+        className="rounded border border-border bg-paper px-2 py-1 text-xs text-ink"
         value={sentiment}
         onChange={(e) => setSentiment(e.target.value as Sentiment)}
       >
@@ -72,14 +72,14 @@ function ManualFactForm({ noteId, onSaved }: { noteId: number; onSaved: () => vo
       <button
         onClick={handleAdd}
         disabled={saving}
-        className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+        className="rounded-md bg-clay px-3 py-1 text-xs font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
       >
         Add
       </button>
-      <button onClick={() => setOpen(false)} className="text-xs text-zinc-400">
+      <button onClick={() => setOpen(false)} className="text-xs text-ink-faint">
         Cancel
       </button>
-      {error && <p className="w-full text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="w-full text-xs text-rose">{error}</p>}
     </div>
   );
 }
@@ -103,27 +103,32 @@ export default function NotesList({
   }
 
   return (
-    <section className="mb-6">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+    <section className="mb-7">
+      <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
         Notes
       </h2>
-      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-2 text-sm text-rose">{error}</p>}
       {notes.length === 0 ? (
-        <p className="text-sm text-zinc-500">No notes yet.</p>
+        <p className="text-sm text-ink-muted">No notes yet.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {notes.map((n) => (
-            <li key={n.id} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+            <li
+              key={n.id}
+              className="rounded-lg border border-border bg-paper-raised p-3.5 shadow-warm"
+            >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm text-zinc-800 dark:text-zinc-200">{n.text}</p>
+                <p className="font-display text-[15px] italic leading-snug text-ink">
+                  &ldquo;{n.text}&rdquo;
+                </p>
                 <button
                   onClick={() => handleDelete(n.id)}
-                  className="shrink-0 text-xs text-zinc-400 hover:text-red-600"
+                  className="shrink-0 text-xs text-ink-faint transition-colors hover:text-rose"
                 >
                   Delete
                 </button>
               </div>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1.5 text-xs text-ink-faint">
                 {new Date(n.created_at.replace(" ", "T") + "Z").toLocaleDateString()}
               </p>
               <ManualFactForm noteId={n.id} onSaved={onChange} />

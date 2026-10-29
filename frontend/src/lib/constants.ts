@@ -21,10 +21,10 @@ export const CATEGORY_LABEL: Record<FactCategory, string> = {
 };
 
 export const CATEGORY_COLOR: Record<FactCategory, string> = {
-  like: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900",
-  dislike: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-900",
-  wishlist: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900",
-  dietary: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-900",
-  constraint: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-900",
-  past_experience: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
+  like: "bg-sage-soft text-sage-ink border-sage/30",
+  dislike: "bg-rose-soft text-rose-ink border-rose/30",
+  wishlist: "bg-amber-soft text-amber-ink border-amber/30",
+  dietary: "bg-clay-soft text-clay-hover border-clay/30",
+  constraint: "bg-plum-soft text-plum-ink border-plum/30",
+  past_experience: "bg-paper-raised text-ink-muted border-border-strong",
 };

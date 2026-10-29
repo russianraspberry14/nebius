@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import useSWR from "swr";
+import { motion } from "motion/react";
 import { api, ApiError, Fact, PlanOption } from "@/lib/api";
 import { CATEGORY_LABEL } from "@/lib/constants";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 function CitedFacts({ factIds, facts }: { factIds: number[]; facts: Fact[] }) {
   if (factIds.length === 0) return null;
@@ -15,11 +18,11 @@ function CitedFacts({ factIds, facts }: { factIds: number[]; facts: Fact[] }) {
   if (cited.length === 0) return null;
 
   return (
-    <div className="mt-1 flex flex-wrap gap-1">
+    <div className="mt-1.5 flex flex-wrap gap-1">
       {cited.map((f) => (
         <span
           key={f.id}
-          className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
+          className="rounded-full border border-clay/25 bg-clay-soft px-2 py-0.5 text-xs text-clay-hover"
           title={`${CATEGORY_LABEL[f.category]}: ${f.value}`}
         >
           {f.value}
@@ -43,7 +46,7 @@ function ReviseStopForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        className="mt-1.5 text-xs font-medium text-ink-faint transition-colors hover:text-clay"
       >
         Swap this for something else
       </button>
@@ -51,9 +54,9 @@ function ReviseStopForm({
   }
 
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-2">
+    <div className="mt-1.5 flex flex-wrap items-center gap-2">
       <input
-        className="min-w-48 flex-1 rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+        className="min-w-48 flex-1 rounded border border-border bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none"
         placeholder="e.g. something cheaper, somewhere quieter"
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
@@ -67,11 +70,11 @@ function ReviseStopForm({
           setInstruction("");
         }}
         disabled={revising || !instruction.trim()}
-        className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+        className="rounded-md bg-clay px-3 py-1 text-xs font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
       >
         {revising ? "Revising..." : "Go"}
       </button>
-      <button onClick={() => setOpen(false)} className="text-xs text-zinc-400" disabled={revising}>
+      <button onClick={() => setOpen(false)} className="text-xs text-ink-faint" disabled={revising}>
         Cancel
       </button>
     </div>
@@ -86,6 +89,7 @@ function OptionCard({
   saved,
   onReviseStop,
   revisingStopIndex,
+  delay,
 }: {
   option: PlanOption;
   facts: Fact[];
@@ -94,41 +98,47 @@ function OptionCard({
   saved: boolean;
   onReviseStop: (stopIndex: number, instruction: string) => void;
   revisingStopIndex: number | null;
+  delay: number;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{option.title}</h3>
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay, ease: EASE }}
+      className="rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="font-display text-xl text-ink">{option.title}</h3>
         <button
           onClick={onSave}
           disabled={saving || saved}
-          className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="shrink-0 rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
         >
           {saved ? "Saved" : saving ? "Saving..." : "Save this plan"}
         </button>
       </div>
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-4">
         {option.stops.map((stop, i) => (
-          <li key={i} className="border-l-2 border-zinc-200 pl-3 dark:border-zinc-800">
+          <li key={i} className="border-l-2 border-clay/40 pl-3.5">
             <div className="flex flex-wrap items-baseline gap-x-2">
               {stop.url ? (
                 <a
                   href={stop.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-zinc-900 underline dark:text-zinc-50"
+                  className="font-medium text-ink underline decoration-clay/50 underline-offset-2 transition-colors hover:text-clay"
                 >
                   {stop.name}
                 </a>
               ) : (
-                <span className="font-medium text-zinc-900 dark:text-zinc-50">{stop.name}</span>
+                <span className="font-medium text-ink">{stop.name}</span>
               )}
-              {stop.time && <span className="text-sm text-zinc-500">{stop.time}</span>}
+              {stop.time && <span className="text-sm text-ink-muted">{stop.time}</span>}
               {stop.cost_estimate && (
-                <span className="text-sm text-zinc-500">{stop.cost_estimate}</span>
+                <span className="text-sm text-ink-muted">{stop.cost_estimate}</span>
               )}
             </div>
-            {stop.why && <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">{stop.why}</p>}
+            {stop.why && <p className="mt-0.5 text-sm text-ink-muted">{stop.why}</p>}
             <CitedFacts factIds={stop.cited_fact_ids} facts={facts} />
             {!saved && (
               <ReviseStopForm
@@ -139,7 +149,7 @@ function OptionCard({
           </li>
         ))}
       </ul>
-    </div>
+    </motion.div>
   );
 }
 
@@ -245,61 +255,64 @@ export default function PlanPageClient() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-14">
       <Link
         href={`/people/${personId}`}
-        className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+        className="text-sm text-ink-muted transition-colors hover:text-clay"
       >
         &larr; Back to {detail?.person.name ?? "profile"}
       </Link>
 
-      <h1 className="mb-6 mt-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <h1 className="mb-7 mt-3 font-display text-3xl italic tracking-tight text-ink">
         Plan an outing
       </h1>
 
-      <form onSubmit={handleGenerate} className="mb-6 flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+      <form
+        onSubmit={handleGenerate}
+        className="mb-7 flex flex-col gap-4 rounded-lg border border-border bg-paper-raised p-5 shadow-warm"
+      >
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Occasion
             <input
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
               value={occasion}
               onChange={(e) => setOccasion(e.target.value)}
               required
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Date
             <input
               type="date"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Area
             <input
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
               placeholder={detail?.person.home_city || "Austin, TX"}
               value={area}
               onChange={(e) => setArea(e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-1 text-sm text-ink-muted">
             Budget
             <input
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
               placeholder="$, $$, or $$$"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
             />
           </label>
-          <label className="col-span-2 flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="col-span-2 flex flex-col gap-1 text-sm text-ink-muted">
             Duration
             <input
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
               placeholder="e.g. an afternoon, a full day"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
@@ -309,25 +322,25 @@ export default function PlanPageClient() {
         <button
           type="submit"
           disabled={generating}
-          className="self-start rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
         >
-          {generating ? "Searching and drafting..." : "Generate plan options"}
+          {generating ? "Searching and drafting…" : "Generate plan options"}
         </button>
       </form>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <div className="rise-in mb-5 rounded-lg border border-rose/30 bg-rose-soft px-4 py-2.5 text-sm text-rose-ink">
           {error}
         </div>
       )}
 
       {options && options.length === 0 && (
-        <p className="text-sm text-zinc-500">No options came back - try a different area or date.</p>
+        <p className="text-sm text-ink-muted">No options came back - try a different area or date.</p>
       )}
 
       {options && options.length > 0 && (
-        <div className="flex flex-col gap-4">
-          {options.map((option) => (
+        <div className="flex flex-col gap-5">
+          {options.map((option, i) => (
             <OptionCard
               key={option.title}
               option={option}
@@ -341,6 +354,7 @@ export default function PlanPageClient() {
               revisingStopIndex={
                 revising?.optionTitle === option.title ? revising.stopIndex : null
               }
+              delay={i * 0.08}
             />
           ))}
         </div>

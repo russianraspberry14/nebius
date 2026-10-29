@@ -48,28 +48,28 @@ export default function KeyDates({
   }
 
   return (
-    <section className="mb-6">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+    <section className="mb-7">
+      <div className="mb-2.5 flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
           Key dates
         </h2>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          className="text-sm font-medium text-clay transition-colors hover:text-clay-hover"
         >
           {showForm ? "Cancel" : "+ Add date"}
         </button>
       </div>
 
-      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-2 text-sm text-rose">{error}</p>}
 
       {showForm && (
         <form
           onSubmit={handleAdd}
-          className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+          className="rise-in mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-paper-raised p-3 shadow-warm"
         >
           <input
-            className="w-36 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-36 rounded-md border border-border bg-paper px-2 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
             placeholder="Label (Birthday...)"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -77,23 +77,24 @@ export default function KeyDates({
           />
           <input
             type="date"
-            className="rounded-lg border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-paper px-2 py-1.5 text-sm text-ink focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
           />
-          <label className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <label className="flex items-center gap-1.5 text-sm text-ink-muted">
             <input
               type="checkbox"
               checked={recurring}
               onChange={(e) => setRecurring(e.target.checked)}
+              className="accent-clay"
             />
             Recurring
           </label>
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+            className="rounded-md bg-clay px-3 py-1.5 text-sm font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
           >
             {submitting ? "Saving..." : "Save"}
           </button>
@@ -101,20 +102,20 @@ export default function KeyDates({
       )}
 
       {keyDates.length === 0 ? (
-        <p className="text-sm text-zinc-500">No key dates yet.</p>
+        <p className="text-sm text-ink-muted">No key dates yet.</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {keyDates.map((kd) => (
             <li
               key={kd.id}
-              className="flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1 text-sm dark:border-zinc-800"
+              className="flex items-center gap-2 rounded-full border border-border bg-paper-raised px-3 py-1 text-sm"
             >
-              <span className="font-medium">{kd.label}</span>
-              <span className="text-zinc-500">{kd.date}</span>
-              {kd.recurring && <span className="text-xs text-zinc-400">(yearly)</span>}
+              <span className="font-medium text-ink">{kd.label}</span>
+              <span className="text-ink-muted">{kd.date}</span>
+              {kd.recurring && <span className="text-xs text-ink-faint">(yearly)</span>}
               <button
                 onClick={() => handleDelete(kd.id)}
-                className="text-zinc-400 hover:text-red-600"
+                className="text-ink-faint transition-colors hover:text-rose"
                 aria-label={`Delete ${kd.label}`}
               >
                 &times;

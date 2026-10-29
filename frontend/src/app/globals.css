@@ -1,26 +1,221 @@
 @import "tailwindcss";
 
+/*
+  "Clay & Paper" — a warm, tactile palette for a private notebook about the
+  people you care about. Terracotta instead of SaaS blue/purple; warm paper
+  instead of clinical white/grey.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --color-paper: #f7f1e6;
+  --color-paper-raised: #fffdf8;
+  --color-ink: #2b2420;
+  --color-ink-muted: #786a5c;
+  --color-ink-faint: #a89883;
+  --color-border: #e4d9c7;
+  --color-border-strong: #d2c3a9;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-clay: #c1562e;
+  --color-clay-hover: #a3461f;
+  --color-clay-soft: #f3e0d3;
+  --color-clay-ink: #fffaf5;
+
+  --color-sage: #5b7a5d;
+  --color-sage-soft: #e3eae0;
+  --color-sage-ink: #33462f;
+
+  --color-amber: #a97c1a;
+  --color-amber-soft: #f3e8cc;
+  --color-amber-ink: #4a3912;
+
+  --color-rose: #b5473a;
+  --color-rose-soft: #f3ded8;
+  --color-rose-ink: #4f1f19;
+
+  --color-plum: #7d5577;
+  --color-plum-soft: #ebe0ea;
+  --color-plum-ink: #3d2639;
+
+  --shadow-color: 43 36 32;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --color-paper: #1c1713;
+    --color-paper-raised: #272019;
+    --color-ink: #f3ead9;
+    --color-ink-muted: #b8a892;
+    --color-ink-faint: #7d6f5f;
+    --color-border: #3a2f26;
+    --color-border-strong: #4a3c30;
+
+    --color-clay: #e07a4c;
+    --color-clay-hover: #f0966b;
+    --color-clay-soft: #3d2a20;
+    --color-clay-ink: #241106;
+
+    --color-sage: #8fae8a;
+    --color-sage-soft: #2a3728;
+    --color-sage-ink: #dcead9;
+
+    --color-amber: #d9a441;
+    --color-amber-soft: #3a2f17;
+    --color-amber-ink: #f6e8c9;
+
+    --color-rose: #d98173;
+    --color-rose-soft: #3d2420;
+    --color-rose-ink: #f6dcd6;
+
+    --color-plum: #b08cab;
+    --color-plum-soft: #352b34;
+    --color-plum-ink: #ecdfea;
+
+    --shadow-color: 0 0 0;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-paper: #1c1713;
+  --color-paper-raised: #272019;
+  --color-ink: #f3ead9;
+  --color-ink-muted: #b8a892;
+  --color-ink-faint: #7d6f5f;
+  --color-border: #3a2f26;
+  --color-border-strong: #4a3c30;
+  --color-clay: #e07a4c;
+  --color-clay-hover: #f0966b;
+  --color-clay-soft: #3d2a20;
+  --color-clay-ink: #241106;
+  --color-sage: #8fae8a;
+  --color-sage-soft: #2a3728;
+  --color-sage-ink: #dcead9;
+  --color-amber: #d9a441;
+  --color-amber-soft: #3a2f17;
+  --color-amber-ink: #f6e8c9;
+  --color-rose: #d98173;
+  --color-rose-soft: #3d2420;
+  --color-rose-ink: #f6dcd6;
+  --color-plum: #b08cab;
+  --color-plum-soft: #352b34;
+  --color-plum-ink: #ecdfea;
+  --shadow-color: 0 0 0;
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-paper-raised: var(--color-paper-raised);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-ink-faint: var(--color-ink-faint);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-clay: var(--color-clay);
+  --color-clay-hover: var(--color-clay-hover);
+  --color-clay-soft: var(--color-clay-soft);
+  --color-clay-ink: var(--color-clay-ink);
+  --color-sage: var(--color-sage);
+  --color-sage-soft: var(--color-sage-soft);
+  --color-sage-ink: var(--color-sage-ink);
+  --color-amber: var(--color-amber);
+  --color-amber-soft: var(--color-amber-soft);
+  --color-amber-ink: var(--color-amber-ink);
+  --color-rose: var(--color-rose);
+  --color-rose-soft: var(--color-rose-soft);
+  --color-rose-ink: var(--color-rose-ink);
+  --color-plum: var(--color-plum);
+  --color-plum-soft: var(--color-plum-soft);
+  --color-plum-ink: var(--color-plum-ink);
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-schibsted);
+}
+
+html {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    color-scheme: dark;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  position: relative;
+}
+
+/* Paper grain + soft vignette, fixed so it doesn't scroll with content. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body::before {
+    mix-blend-mode: screen;
+    opacity: 0.6;
+  }
+}
+:root[data-theme="dark"] body::before {
+  mix-blend-mode: screen;
+  opacity: 0.6;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, var(--color-clay-soft), transparent 60%);
+  opacity: 0.6;
+}
+
+#__next,
+body > div {
+  position: relative;
+  z-index: 1;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+::selection {
+  background: var(--color-clay);
+  color: var(--color-clay-ink);
+}
+
+/* Warm, soft shadows instead of default cool grey. */
+.shadow-warm {
+  box-shadow:
+    0 1px 2px rgb(var(--shadow-color) / 0.06),
+    0 6px 16px -4px rgb(var(--shadow-color) / 0.1);
+}
+.shadow-warm-lg {
+  box-shadow:
+    0 2px 4px rgb(var(--shadow-color) / 0.08),
+    0 16px 32px -8px rgb(var(--shadow-color) / 0.16);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

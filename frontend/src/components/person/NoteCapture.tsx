@@ -75,13 +75,13 @@ export default function NoteCapture({
   }
 
   return (
-    <section className="mb-6">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+    <section className="mb-7">
+      <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
         Capture a note
       </h2>
       <form onSubmit={handleCapture} className="flex flex-col gap-2">
         <textarea
-          className="min-h-20 resize-y rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="min-h-20 resize-y rounded-lg border border-border bg-paper-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-clay focus:outline-none focus:ring-1 focus:ring-clay"
           placeholder={'e.g. "Maya said she wants to try pottery, hates loud bars."'}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -89,19 +89,17 @@ export default function NoteCapture({
         <button
           type="submit"
           disabled={capturing || !text.trim()}
-          className="self-start rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="self-start rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink shadow-warm transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
         >
           {capturing ? "Extracting facts..." : "Capture note"}
         </button>
       </form>
 
-      {warning && (
-        <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">{warning}</p>
-      )}
+      {warning && <p className="mt-2 text-sm text-amber">{warning}</p>}
 
       {draftNoteId !== null && (
-        <div className="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="rise-in mt-4 rounded-lg border border-border bg-paper-raised p-4 shadow-warm">
+          <p className="mb-3 text-sm text-ink-muted">
             {chips.length > 0
               ? "Nano proposed these facts. Edit or remove any before saving."
               : "Nano didn't find any facts in that note."}
@@ -110,10 +108,10 @@ export default function NoteCapture({
             {chips.map((chip, i) => (
               <li
                 key={i}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-paper p-2"
               >
                 <select
-                  className="rounded border border-zinc-300 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+                  className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
                   value={chip.category}
                   onChange={(e) =>
                     updateChip(i, { category: e.target.value as FactProposal["category"] })
@@ -126,12 +124,12 @@ export default function NoteCapture({
                   ))}
                 </select>
                 <input
-                  className="min-w-40 flex-1 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="min-w-40 flex-1 rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
                   value={chip.value}
                   onChange={(e) => updateChip(i, { value: e.target.value })}
                 />
                 <select
-                  className="rounded border border-zinc-300 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+                  className="rounded border border-border bg-paper-raised px-2 py-1 text-sm text-ink"
                   value={chip.sentiment ?? "neutral"}
                   onChange={(e) =>
                     updateChip(i, { sentiment: e.target.value as FactProposal["sentiment"] })
@@ -146,7 +144,7 @@ export default function NoteCapture({
                 <button
                   type="button"
                   onClick={() => removeChip(i)}
-                  className="ml-auto text-zinc-400 hover:text-red-600"
+                  className="ml-auto text-ink-faint transition-colors hover:text-rose"
                   aria-label="Remove this fact"
                 >
                   &times;
@@ -158,7 +156,7 @@ export default function NoteCapture({
             <button
               onClick={handleSaveChips}
               disabled={savingChips}
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+              className="rounded-md bg-clay px-4 py-2 text-sm font-medium text-clay-ink transition-all hover:bg-clay-hover active:scale-[0.97] disabled:opacity-50"
             >
               {savingChips
                 ? "Saving..."

@@ -8,7 +8,7 @@ export default function PlanPage() {
     <Suspense
       fallback={
         <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-          <p className="text-sm text-zinc-500">Loading...</p>
+          <p className="text-sm text-ink-muted">Loading...</p>
         </div>
       }
     >

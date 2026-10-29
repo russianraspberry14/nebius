@@ -11,17 +11,17 @@ export default function UpcomingDates() {
 
   return (
     <section className="mb-8">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
         Upcoming
       </h2>
       <ul className="flex flex-col gap-2">
         {dates.map((d) => (
           <li
             key={d.key_date_id}
-            className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 dark:border-zinc-800"
+            className="flex items-center justify-between rounded-lg border border-border bg-paper-raised px-4 py-3 shadow-warm"
           >
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              <span className="font-medium text-zinc-900 dark:text-zinc-50">
+            <p className="text-sm text-ink-muted">
+              <span className="font-display text-base text-ink">
                 {d.person_name}&rsquo;s {d.label.toLowerCase()}
               </span>{" "}
               {d.days_until === 0
@@ -33,14 +33,14 @@ export default function UpcomingDates() {
             {d.draft_plan_id ? (
               <Link
                 href={`/people/${d.person_id}`}
-                className="shrink-0 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:border-emerald-500 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                className="shrink-0 rounded-full border border-sage/40 bg-sage-soft px-3 py-1 text-xs font-medium text-sage-ink transition-colors hover:border-sage"
               >
                 Draft ready
               </Link>
             ) : (
               <Link
                 href={`/people/${d.person_id}/plan`}
-                className="shrink-0 rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
+                className="shrink-0 rounded-full border border-border-strong px-3 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-clay hover:text-clay"
               >
                 Plan this now
               </Link>
