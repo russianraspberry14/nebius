@@ -9,8 +9,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { api, ApiError } from "@/lib/api";
 import AppNav from "@/components/AppNav";
 import QuickCapture from "@/components/QuickCapture";
-import UpcomingPlans from "@/components/UpcomingPlans";
-import UpcomingDates from "@/components/UpcomingDates";
+import UpNext from "@/components/UpNext";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -137,15 +136,7 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.12 }}
       >
-        <UpcomingPlans />
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.18 }}
-      >
-        <UpcomingDates />
+        <UpNext />
       </motion.div>
 
       {people === undefined && !topError && (
@@ -159,37 +150,41 @@ export default function Dashboard() {
         </p>
       )}
 
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {people?.map((p, i) => (
-          <motion.li
-            key={p.id}
-            initial={{ opacity: 0, y: 24, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.2 + i * 0.06 }}
-            whileHover={{ y: -4, scale: 1.015 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Link
-              href={`/people/${p.id}`}
-              className="group flex h-full items-center gap-3 rounded-xl border border-border bg-paper-raised p-4 shadow-warm transition-shadow hover:border-border-strong hover:shadow-warm-lg"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-clay/30 bg-clay-soft font-display text-base text-clay-hover">
-                {initials(p.name)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-lg text-ink">{p.name}</p>
-                <p className="truncate text-sm text-ink-muted">
-                  {p.relationship}
-                  {p.home_city ? ` · ${p.home_city}` : ""}
-                </p>
-              </div>
-              <span className="shrink-0 text-clay transition-transform group-hover:translate-x-1">
-                &rarr;
-              </span>
-            </Link>
-          </motion.li>
-        ))}
-      </ul>
+      {people !== undefined && people.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
+            People
+          </h2>
+          <div className="flex flex-wrap gap-x-5 gap-y-4">
+            {people.map((p, i) => (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, y: 20, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.25 + i * 0.06 }}
+              >
+                <Link
+                  href={`/people/${p.id}`}
+                  className="group flex w-20 flex-col items-center gap-2 text-center"
+                >
+                  <motion.span
+                    whileHover={{ scale: 1.08, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className="flex h-16 w-16 items-center justify-center rounded-full border border-clay/30 bg-clay-soft font-display text-xl text-clay-hover shadow-warm transition-shadow group-hover:shadow-warm-lg"
+                  >
+                    {initials(p.name)}
+                  </motion.span>
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-sm text-ink">{p.name}</p>
+                    <p className="truncate text-xs text-ink-faint">{p.relationship}</p>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
       </div>
     </>
   );
