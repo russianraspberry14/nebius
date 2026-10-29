@@ -1,3 +1,5 @@
+import { getSession } from "next-auth/react";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type FactCategory =
@@ -130,10 +132,17 @@ class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  // Reads the current NextAuth session for every call rather than threading a
+  // token through every component - keeps call sites unchanged for the
+  // dozens of existing api.* calls, at the cost of one extra /api/auth/session
+  // round trip per request (acceptable at this app's scale).
+  const session = await getSession();
+  const headers: HeadersInit = { "Content-Type": "application/json", ...init?.headers };
+  if (session?.accessToken) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${session.accessToken}`;
+  }
+
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -208,6 +217,15 @@ export const api = {
 
   reviseStop: (data: ReviseStopRequest) =>
     request<PlanStop>("/plans/revise-stop", { method: "POST", body: JSON.stringify(data) }),
+
+  // Registration isn't a NextAuth concept - it goes straight to the backend,
+  // which returns a token the caller then uses with next-auth's signIn()
+  // (credentials provider) to establish a session.
+  signup: (email: string, password: string) =>
+    request<{ access_token: string }>("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
 };
 
 export { ApiError };

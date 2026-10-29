@@ -14,11 +14,14 @@ from app.models import (
     PersonUpdate,
     PlanOut,
     PlanStop,
+    UserOut,
 )
 
 
 def _row_to_person(row: sqlite3.Row) -> PersonOut:
-    return PersonOut(**dict(row))
+    d = dict(row)
+    d.pop("user_id", None)
+    return PersonOut(**d)
 
 
 def _row_to_key_date(row: sqlite3.Row) -> KeyDateOut:
@@ -44,62 +47,130 @@ def _row_to_plan(row: sqlite3.Row) -> PlanOut:
     return PlanOut(**d)
 
 
-# ---- Person ----
+def _row_to_user(row: sqlite3.Row) -> UserOut:
+    d = dict(row)
+    d.pop("hashed_password", None)
+    return UserOut(**d)
 
-def create_person(name: str, relationship: str, home_city: Optional[str]) -> PersonOut:
+
+# ---- User ----
+
+def create_user(email: str, hashed_password: str) -> UserOut:
     conn = get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO person (name, relationship, home_city) VALUES (?, ?, ?)",
-            (name, relationship, home_city),
+            "INSERT INTO user (email, hashed_password) VALUES (?, ?)",
+            (email.lower(), hashed_password),
         )
         conn.commit()
-        return get_person(cur.lastrowid, conn=conn)
+        row = conn.execute("SELECT * FROM user WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return _row_to_user(row)
     finally:
         conn.close()
 
 
-def list_people() -> list[PersonOut]:
+def get_user_by_email_with_hash(email: str) -> Optional[sqlite3.Row]:
+    """Raw row (includes hashed_password) - only for verifying a login attempt."""
     conn = get_connection()
     try:
-        rows = conn.execute("SELECT * FROM person ORDER BY created_at DESC").fetchall()
+        return conn.execute("SELECT * FROM user WHERE email = ?", (email.lower(),)).fetchone()
+    finally:
+        conn.close()
+
+
+def email_taken(email: str) -> bool:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT 1 FROM user WHERE email = ?", (email.lower(),)).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def get_user(user_id: int) -> Optional[UserOut]:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
+        return _row_to_user(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_users() -> list[UserOut]:
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT * FROM user ORDER BY id").fetchall()
+        return [_row_to_user(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ---- Person ----
+
+def create_person(user_id: int, name: str, relationship: str, home_city: Optional[str]) -> PersonOut:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO person (user_id, name, relationship, home_city) VALUES (?, ?, ?, ?)",
+            (user_id, name, relationship, home_city),
+        )
+        conn.commit()
+        return get_person(cur.lastrowid, user_id, conn=conn)
+    finally:
+        conn.close()
+
+
+def list_people(user_id: int) -> list[PersonOut]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM person WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
         return [_row_to_person(r) for r in rows]
     finally:
         conn.close()
 
 
-def get_person(person_id: int, conn: Optional[sqlite3.Connection] = None) -> Optional[PersonOut]:
+def get_person(
+    person_id: int, user_id: int, conn: Optional[sqlite3.Connection] = None
+) -> Optional[PersonOut]:
+    """None if the person doesn't exist OR belongs to someone else - callers
+    treat both the same way (404), so this never leaks whether an id exists."""
     owns_conn = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute("SELECT * FROM person WHERE id = ?", (person_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM person WHERE id = ? AND user_id = ?", (person_id, user_id)
+        ).fetchone()
         return _row_to_person(row) if row else None
     finally:
         if owns_conn:
             conn.close()
 
 
-def update_person(person_id: int, data: PersonUpdate) -> Optional[PersonOut]:
+def update_person(person_id: int, user_id: int, data: PersonUpdate) -> Optional[PersonOut]:
     fields = data.model_dump(exclude_unset=True)
     if not fields:
-        return get_person(person_id)
+        return get_person(person_id, user_id)
     conn = get_connection()
     try:
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         conn.execute(
-            f"UPDATE person SET {set_clause} WHERE id = ?",
-            (*fields.values(), person_id),
+            f"UPDATE person SET {set_clause} WHERE id = ? AND user_id = ?",
+            (*fields.values(), person_id, user_id),
         )
         conn.commit()
-        return get_person(person_id, conn=conn)
+        return get_person(person_id, user_id, conn=conn)
     finally:
         conn.close()
 
 
-def delete_person(person_id: int) -> bool:
+def delete_person(person_id: int, user_id: int) -> bool:
     conn = get_connection()
     try:
-        cur = conn.execute("DELETE FROM person WHERE id = ?", (person_id,))
+        cur = conn.execute(
+            "DELETE FROM person WHERE id = ? AND user_id = ?", (person_id, user_id)
+        )
         conn.commit()
         return cur.rowcount > 0
     finally:
@@ -107,6 +178,9 @@ def delete_person(person_id: int) -> bool:
 
 
 # ---- KeyDate ----
+# Callers verify person ownership (via get_person) before create/list; the
+# leaf-level delete re-checks ownership itself via a join, since a
+# key_date_id alone doesn't carry the owning user.
 
 def create_key_date(person_id: int, data: KeyDateCreate) -> KeyDateOut:
     conn = get_connection()
@@ -133,10 +207,14 @@ def list_key_dates(person_id: int) -> list[KeyDateOut]:
         conn.close()
 
 
-def delete_key_date(key_date_id: int) -> bool:
+def delete_key_date(key_date_id: int, user_id: int) -> bool:
     conn = get_connection()
     try:
-        cur = conn.execute("DELETE FROM key_date WHERE id = ?", (key_date_id,))
+        cur = conn.execute(
+            """DELETE FROM key_date WHERE id = ? AND person_id IN
+               (SELECT id FROM person WHERE user_id = ?)""",
+            (key_date_id, user_id),
+        )
         conn.commit()
         return cur.rowcount > 0
     finally:
@@ -158,10 +236,14 @@ def create_note(person_id: int, text: str) -> NoteOut:
         conn.close()
 
 
-def get_note(note_id: int) -> Optional[NoteOut]:
+def get_note(note_id: int, user_id: int) -> Optional[NoteOut]:
     conn = get_connection()
     try:
-        row = conn.execute("SELECT * FROM note WHERE id = ?", (note_id,)).fetchone()
+        row = conn.execute(
+            """SELECT note.* FROM note JOIN person ON person.id = note.person_id
+               WHERE note.id = ? AND person.user_id = ?""",
+            (note_id, user_id),
+        ).fetchone()
         return _row_to_note(row) if row else None
     finally:
         conn.close()
@@ -178,10 +260,14 @@ def list_notes(person_id: int) -> list[NoteOut]:
         conn.close()
 
 
-def delete_note(note_id: int) -> bool:
+def delete_note(note_id: int, user_id: int) -> bool:
     conn = get_connection()
     try:
-        cur = conn.execute("DELETE FROM note WHERE id = ?", (note_id,))
+        cur = conn.execute(
+            """DELETE FROM note WHERE id = ? AND person_id IN
+               (SELECT id FROM person WHERE user_id = ?)""",
+            (note_id, user_id),
+        )
         conn.commit()
         return cur.rowcount > 0
     finally:
@@ -222,10 +308,14 @@ def list_facts(person_id: int) -> list[FactOut]:
         conn.close()
 
 
-def delete_fact(fact_id: int) -> bool:
+def delete_fact(fact_id: int, user_id: int) -> bool:
     conn = get_connection()
     try:
-        cur = conn.execute("DELETE FROM fact WHERE id = ?", (fact_id,))
+        cur = conn.execute(
+            """DELETE FROM fact WHERE id = ? AND person_id IN
+               (SELECT id FROM person WHERE user_id = ?)""",
+            (fact_id, user_id),
+        )
         conn.commit()
         return cur.rowcount > 0
     finally:
@@ -233,6 +323,9 @@ def delete_fact(fact_id: int) -> bool:
 
 
 # ---- Plan ----
+# Callers verify every person_id in a plan belongs to the requesting user
+# (via get_person) before create/list - a plan's person_ids are a JSON array,
+# not a single FK, so there's no single join to check ownership here.
 
 def create_plan(
     person_ids: list[int],
@@ -282,13 +375,15 @@ def list_plans(person_id: int) -> list[PlanOut]:
 
 # ---- Dashboard ----
 
-def list_all_key_dates_with_person() -> list[dict]:
+def list_all_key_dates_with_person(user_id: int) -> list[dict]:
     conn = get_connection()
     try:
         rows = conn.execute(
             """SELECT key_date.id, key_date.label, key_date.date, key_date.recurring,
                       person.id AS person_id, person.name AS person_name
-               FROM key_date JOIN person ON person.id = key_date.person_id"""
+               FROM key_date JOIN person ON person.id = key_date.person_id
+               WHERE person.user_id = ?""",
+            (user_id,),
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
@@ -297,8 +392,8 @@ def list_all_key_dates_with_person() -> list[dict]:
 
 # ---- Composite ----
 
-def get_person_detail(person_id: int) -> Optional[PersonDetail]:
-    person = get_person(person_id)
+def get_person_detail(person_id: int, user_id: int) -> Optional[PersonDetail]:
+    person = get_person(person_id, user_id)
     if person is None:
         return None
     return PersonDetail(
@@ -309,16 +404,18 @@ def get_person_detail(person_id: int) -> Optional[PersonDetail]:
     )
 
 
-def gather_people_facts_and_history(person_ids: list[int]) -> tuple[dict[str, list[FactOut]], list[str]]:
+def gather_people_facts_and_history(
+    person_ids: list[int], user_id: int
+) -> tuple[dict[str, list[FactOut]], list[str]]:
     """Shared context for generating a plan, revising a stop, and the pre-draft job.
 
     Returns (confirmed facts per person name, past stop names across their
     saved/drafted plans - the "avoid repeats" list). Raises ValueError for an
-    unknown person id so callers can turn that into a 404.
+    unknown or not-owned person id so callers can turn that into a 404.
     """
     people_facts: dict[str, list[FactOut]] = {}
     for person_id in person_ids:
-        person = get_person(person_id)
+        person = get_person(person_id, user_id)
         if person is None:
             raise ValueError(f"Person {person_id} not found")
         people_facts[person.name] = list_facts(person_id)

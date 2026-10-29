@@ -15,6 +15,11 @@ Built for the Personal AI track: persistent memory (person profiles), reusable s
 (plan outing, suggest gift), user-chosen tools (places/events/weather), and private data
 under the user's control.
 
+> **Note on scope:** the original spec treats this as single-user ("one user, many people
+> profiles" was an explicit non-goal). It's since grown real multi-user accounts - every
+> person belongs to exactly one signed-in user, enforced at the database query level, not
+> just in the UI. See "Authentication" below.
+
 ## Architecture
 
 One FastAPI backend orchestrates everything and routes each job to the smallest Nemotron
@@ -22,23 +27,28 @@ tier that can do it well, per the brief's advice to save Ultra for serious reaso
 
 ```mermaid
 flowchart LR
-    subgraph Frontend
-        Web[Next.js web app]
+    subgraph Frontend[Next.js web app]
+        Landing[Public: landing, login, signup]
+        App[Auth-gated: dashboard, people, plans]
+        NextAuth[NextAuth session<br/>Credentials provider]
     end
 
     subgraph Backend[FastAPI backend]
-        Routes[REST routers]
+        Auth[auth.py - bcrypt + JWT]
+        Routes[REST routers<br/>require_user on every route]
         Nano[Nano - fact extraction]
         ToolLoop[Super - tool-calling loop]
         Planner[Ultra - plan drafting<br/>Super - stop revision]
     end
 
-    DB[(SQLite<br/>person - note - fact - plan - tool_cache)]
+    DB[(SQLite<br/>user - person - note - fact - plan - tool_cache<br/>every person scoped to user_id)]
     TF[Nebius Token Factory<br/>Nemotron 3 Nano / Super / Ultra]
     Tools[geocode - weather - places - events<br/>24h cached]
-    Job[Nebius Serverless Job<br/>daily pre-draft]
+    Job[Nebius Serverless Job<br/>daily pre-draft, per user]
 
-    Web <--> Routes
+    App --> NextAuth --> Auth
+    App -- "Bearer JWT" --> Routes
+    Auth <--> DB
     Routes <--> DB
     Routes --> Nano --> TF
     Routes --> ToolLoop --> TF
@@ -84,6 +94,9 @@ uvicorn app.main:app --reload
 
 Confirm the Nano and Ultra model IDs in the Token Factory console — the spec only
 pins Super's ID (`nvidia/nemotron-3-super120b-a12b`).
+
+Also set `JWT_SECRET` in `backend/.env` for auth (any random string locally; generate a
+real one for anything beyond local dev - see the comment in `.env.example`).
 
 ### External tools
 
@@ -140,6 +153,18 @@ cd frontend
 npm install
 cp .env.local.example .env.local
 npm run dev
+```
+
+`.env.local.example` also carries `NEXTAUTH_SECRET` (any string locally, a real
+generated one in production - see the comment in the file) and `NEXTAUTH_URL`.
+
+### Trying it out
+
+Visit `http://localhost:3000` for the landing page, or sign in directly with the
+seeded demo account (`python -m scripts.seed_demo` creates it):
+
+```
+judge@gmail.com / judge123
 ```
 
 ### Voice capture
@@ -229,6 +254,39 @@ structured fact extraction a single call instead of a parse-and-pray prompt. Sta
 `app/tool_loop.py` could be written against the SDK's normal interface rather than a
 custom agent protocol.
 
+## Authentication
+
+Standard, from-scratch FastAPI + Next.js auth - no third-party auth service, no cost.
+
+**Backend (`app/auth.py`, `app/routers/auth.py`).** Passwords are hashed with bcrypt,
+never stored or logged in plaintext. `POST /auth/signup` and `POST /auth/login` both
+return a signed JWT (14-day expiry); every other route depends on `require_user`
+(`fastapi.security.HTTPBearer`), which decodes the token and 401s if it's missing,
+malformed, or expired. Every table that holds a person's data is scoped to `user_id`
+at the query level - `get_person(person_id, user_id)` returns `None` for a person that
+doesn't exist *or* belongs to someone else, so a guessed id can't leak whether it
+exists. `tests/test_auth.py` includes a cross-user isolation test: a second account
+can't list, fetch, or delete the first account's people.
+
+**Frontend (`src/lib/authOptions.ts`, `src/proxy.ts`).** NextAuth.js (`next-auth`) with
+a Credentials provider whose `authorize()` calls the backend's `/auth/login` and
+stores the resulting JWT in the NextAuth session (JWT session strategy, so no server
+session table on the frontend either). `src/lib/api.ts` reads that token via
+`getSession()` before every request and attaches it as `Authorization: Bearer <token>`
+- existing components didn't need to change to become auth-aware. Registration isn't a
+NextAuth concept, so `/signup` calls the backend directly, then signs in right after.
+
+`next-auth` v5 (the version purpose-built for the App Router, with a cleaner `auth()`
+API) is still in beta as of this build - `npm install next-auth@latest` itself
+resolves to v4. Given that, v4 is the more defensible choice for something meant to
+actually work reliably, even though its App Router support is a slightly later
+addition to the library than v5's.
+
+Route protection is a `proxy.ts` file (Next.js 16 renamed the `middleware.ts`
+convention to `proxy.ts` - the build fails outright on the old name, not just a
+deprecation warning) wrapping `next-auth/middleware`, matched against `/app/:path*`
+and `/people/:path*`. The landing page, `/login`, and `/signup` stay public.
+
 ## Other Nebius services
 
 - **Serverless Endpoint** - the backend's deployment target: `uvicorn app.main:app` is
@@ -245,39 +303,50 @@ backend/
   app/
     main.py       # FastAPI app + lifespan DB init + router wiring
     db.py         # SQLite connection + schema loader
-    schema.sql    # person, key_date, note, fact, plan
+    schema.sql    # user, person, key_date, note, fact, plan
     models.py     # Pydantic request/response schemas
-    crud.py       # SQLite CRUD helpers
+    crud.py       # SQLite CRUD helpers, every person-scoped query takes user_id
+    auth.py       # bcrypt hashing + JWT issuance/verification + require_user
     nemotron.py   # tiered Nemotron client (Nano/Super/Ultra) + fact extraction
     json_utils.py # shared LLM JSON-response parsing
     tool_loop.py  # Super's tool-calling loop (places/events/weather/geocode)
     planner.py    # Ultra plan drafting + revise-one-stop + citation/url grounding
     dates.py      # pure date math (next occurrence, days until)
-    dashboard.py  # upcoming-dates assembly (+ draft_plan_id lookup)
-    predraft.py   # daily pre-draft job (flow D)
+    dashboard.py  # upcoming-dates assembly (+ draft_plan_id lookup), per user
+    predraft.py   # daily pre-draft job (flow D), per user
     config.py     # env-var loading
     tools/        # geocode, weather, places, events + 24h SQLite cache
-    routers/      # people, notes, facts, planning, plans, dashboard endpoints
+    routers/      # auth, people, notes, facts, planning, plans, dashboard endpoints
   scripts/
     smoke_test_nemotron.py
-    seed_demo.py
-    predraft_plans.py
-  tests/          # pytest suite (CRUD, capture flow, tools, tool loop, planner, dashboard, predraft)
+    seed_demo.py       # creates judge@gmail.com, then Maya/Sam under it
+    predraft_plans.py  # loops every user, runs predraft.py for each
+  tests/          # pytest suite - CRUD, auth, capture flow, tools, tool loop, planner,
+                  # dashboard, predraft; `client` fixture is pre-authenticated,
+                  # `raw_client` is bare (auth/401/cross-user tests)
 frontend/
   src/
     app/
-      page.tsx                    # people list + add person + upcoming dates
+      page.tsx                    # public landing page (mission, how it works, features)
+      app/page.tsx                # auth-gated dashboard (people list, add person, upcoming)
+      login/page.tsx, signup/page.tsx
+      api/auth/[...nextauth]/route.ts
       people/[id]/page.tsx        # person profile (server wrapper, Suspense)
       people/[id]/plan/page.tsx   # plan-an-outing flow (server wrapper, Suspense)
     components/
+      AuthProvider.tsx             # NextAuth SessionProvider wrapper
       UpcomingDates.tsx            # "Plan this now" / "Draft ready"
+      landing/                     # LandingNav (scroll-spy), Hero, Reveal, icons
       person/   # KeyDates, NoteCapture, NotesList, FactsList, PlansList, PlanPageClient
     lib/
-      api.ts                   # typed fetch client for the backend
+      api.ts                   # typed fetch client, attaches the session's JWT
+      authOptions.ts            # NextAuth config (Credentials provider, JWT session)
       constants.ts             # fact category labels/colors
       useSpeechRecognition.ts  # browser-native voice-to-text for note capture
     types/
       speech-recognition.d.ts  # ambient types for the Web Speech API
+      next-auth.d.ts           # module augmentation for the custom accessToken field
+    proxy.ts      # route protection (Next.js 16's middleware.ts replacement)
 ```
 
 ## License

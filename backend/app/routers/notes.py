@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app import crud
+from app.auth import require_user
 from app.models import FactConfirmBatch, FactOut, NoteCaptureResult, NoteCreate, NoteOut
 from app.nemotron import extract_facts
 
@@ -8,14 +9,14 @@ router = APIRouter(tags=["notes"])
 
 
 @router.post("/people/{person_id}/notes", response_model=NoteCaptureResult, status_code=201)
-def capture_note(person_id: int, data: NoteCreate):
+def capture_note(person_id: int, data: NoteCreate, user_id: int = Depends(require_user)):
     """Save the raw note, then run it through Nano for proposed facts.
 
     The note is saved immediately (it's the source of truth for citations);
     the proposed facts are NOT persisted here - the user accepts/edits/deletes
     each chip client-side, then POSTs the final set to /notes/{note_id}/facts.
     """
-    if crud.get_person(person_id) is None:
+    if crud.get_person(person_id, user_id) is None:
         raise HTTPException(status_code=404, detail="Person not found")
 
     note = crud.create_note(person_id, data.text)
@@ -29,21 +30,21 @@ def capture_note(person_id: int, data: NoteCreate):
 
 
 @router.get("/people/{person_id}/notes", response_model=list[NoteOut])
-def list_notes(person_id: int):
-    if crud.get_person(person_id) is None:
+def list_notes(person_id: int, user_id: int = Depends(require_user)):
+    if crud.get_person(person_id, user_id) is None:
         raise HTTPException(status_code=404, detail="Person not found")
     return crud.list_notes(person_id)
 
 
 @router.delete("/notes/{note_id}", status_code=204)
-def delete_note(note_id: int):
-    if not crud.delete_note(note_id):
+def delete_note(note_id: int, user_id: int = Depends(require_user)):
+    if not crud.delete_note(note_id, user_id):
         raise HTTPException(status_code=404, detail="Note not found")
 
 
 @router.post("/notes/{note_id}/facts", response_model=list[FactOut], status_code=201)
-def confirm_facts(note_id: int, batch: FactConfirmBatch):
-    note = crud.get_note(note_id)
+def confirm_facts(note_id: int, batch: FactConfirmBatch, user_id: int = Depends(require_user)):
+    note = crud.get_note(note_id, user_id)
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     return crud.create_facts(note.person_id, note_id, batch.facts)

@@ -33,7 +33,7 @@ export default function PersonPageClient() {
     setDeleting(true);
     try {
       await api.deletePerson(personId);
-      router.push("/");
+      router.push("/app");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't delete this person.");
       setDeleting(false);
@@ -43,7 +43,7 @@ export default function PersonPageClient() {
   if (loadError && !detail) {
     return (
       <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-        <Link href="/" className="text-sm text-ink-muted hover:text-clay">
+        <Link href="/app" className="text-sm text-ink-muted hover:text-clay">
           &larr; Back
         </Link>
         <p className="mt-4 text-sm text-rose">
@@ -65,7 +65,7 @@ export default function PersonPageClient() {
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-14">
-      <Link href="/" className="text-sm text-ink-muted transition-colors hover:text-clay">
+      <Link href="/app" className="text-sm text-ink-muted transition-colors hover:text-clay">
         &larr; Back
       </Link>
 

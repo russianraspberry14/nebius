@@ -10,19 +10,30 @@ import sys
 sys.path.insert(0, ".")
 
 from app import crud  # noqa: E402
+from app.auth import hash_password  # noqa: E402
 from app.db import init_db  # noqa: E402
 from app.models import FactConfirm, KeyDateCreate, PlanStop  # noqa: E402
+
+DEMO_EMAIL = "judge@gmail.com"
+DEMO_PASSWORD = "judge123"
 
 
 def seed():
     init_db()
 
-    if crud.list_people():
-        print("Database already has people in it - skipping seed to avoid duplicates.")
+    demo_user = crud.get_user_by_email_with_hash(DEMO_EMAIL)
+    if demo_user is None:
+        demo = crud.create_user(DEMO_EMAIL, hash_password(DEMO_PASSWORD))
+        print(f"Created demo account: {DEMO_EMAIL} / {DEMO_PASSWORD}")
+    else:
+        demo = crud.get_user(demo_user["id"])
+
+    if crud.list_people(demo.id):
+        print("Demo account already has people in it - skipping seed to avoid duplicates.")
         print("Delete backend/app/kindred.db and re-run if you want a fresh seed.")
         return
 
-    maya = crud.create_person("Maya Chen", "partner", "Austin, TX")
+    maya = crud.create_person(demo.id, "Maya Chen", "partner", "Austin, TX")
     crud.create_key_date(maya.id, KeyDateCreate(label="Birthday", date="2026-11-12", recurring=True))
     note1 = crud.create_note(
         maya.id, "Maya said she wants to try pottery, hates loud bars."
@@ -87,7 +98,7 @@ def seed():
         status="saved",
     )
 
-    sam = crud.create_person("Sam Rivera", "friend", "Austin, TX")
+    sam = crud.create_person(demo.id, "Sam Rivera", "friend", "Austin, TX")
     crud.create_key_date(sam.id, KeyDateCreate(label="Birthday", date="2026-11-08", recurring=True))
     sam_note1 = crud.create_note(
         sam.id, "Sam's really into board games and craft beer. No stairs - bad knee."
@@ -114,6 +125,7 @@ def seed():
     )
 
     print(f"Seeded: {maya.name} (id={maya.id}), {sam.name} (id={sam.id})")
+    print(f"Sign in as {DEMO_EMAIL} / {DEMO_PASSWORD} to see them.")
 
 
 if __name__ == "__main__":

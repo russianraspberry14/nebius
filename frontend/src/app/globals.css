@@ -130,6 +130,11 @@
 
 html {
   color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+.scroll-section {
+  scroll-margin-top: 5rem;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;

@@ -5,11 +5,11 @@ from app.dates import days_until, next_occurrence
 from app.models import UpcomingDate
 
 
-def get_upcoming_dates(today: Date | None = None) -> list[UpcomingDate]:
+def get_upcoming_dates(user_id: int, today: Date | None = None) -> list[UpcomingDate]:
     today = today or Date.today()
     upcoming = []
     plans_by_person: dict[int, list] = {}
-    for row in crud.list_all_key_dates_with_person():
+    for row in crud.list_all_key_dates_with_person(user_id):
         recurring = bool(row["recurring"])
         occurrence = next_occurrence(row["date"], recurring, today)
         delta = days_until(occurrence, today)

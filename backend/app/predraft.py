@@ -29,11 +29,11 @@ class PredraftOutcome:
     detail: str = ""
 
 
-def predraft_plans(today: Date | None = None) -> list[PredraftOutcome]:
+def predraft_plans(user_id: int, today: Date | None = None) -> list[PredraftOutcome]:
     today = today or Date.today()
     outcomes: list[PredraftOutcome] = []
 
-    for upcoming in get_upcoming_dates(today=today):
+    for upcoming in get_upcoming_dates(user_id, today=today):
         if upcoming.days_until > PREDRAFT_WINDOW_DAYS:
             continue
         if upcoming.draft_plan_id is not None:
@@ -45,7 +45,7 @@ def predraft_plans(today: Date | None = None) -> list[PredraftOutcome]:
             )
             continue
 
-        person = crud.get_person(upcoming.person_id)
+        person = crud.get_person(upcoming.person_id, user_id)
         if not person.home_city:
             outcomes.append(
                 PredraftOutcome(
@@ -56,7 +56,7 @@ def predraft_plans(today: Date | None = None) -> list[PredraftOutcome]:
             continue
 
         try:
-            people_facts, past_stop_names = crud.gather_people_facts_and_history([person.id])
+            people_facts, past_stop_names = crud.gather_people_facts_and_history([person.id], user_id)
             candidates = run_candidate_search(
                 occasion=upcoming.label, date=upcoming.date, area=person.home_city,
             )
