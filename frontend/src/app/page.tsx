@@ -1,8 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import LandingNav from "@/components/landing/LandingNav";
 import Hero from "@/components/landing/Hero";
 import Reveal from "@/components/landing/Reveal";
-import HoldingHandsIllustration from "@/components/landing/HoldingHandsIllustration";
 import {
   BellIcon,
   ChatIcon,
@@ -23,17 +23,17 @@ const STEPS = [
   {
     icon: MicIcon,
     title: "Say what you know",
-    body: "By voice, the moment you hear it — no typing, no app-switching, no waiting until you're \"somewhere you can write it down.\"",
+    body: "By voice, the moment you hear it: no typing, no app-switching, no waiting until you're \"somewhere you can write it down.\"",
   },
   {
     icon: SparkleIcon,
     title: "Nemotron extracts the fact",
-    body: "Nano turns a sentence into a structured, searchable fact — tagged, sourced, and shown to you to confirm before it's saved.",
+    body: "Nano turns a sentence into a structured, searchable fact, tagged, sourced, and shown to you to confirm before it's saved.",
   },
   {
     icon: MapPinIcon,
     title: "Get a cited plan",
-    body: "When the date arrives, Ultra drafts an outing where every stop cites the note behind it — you get credit for paying attention.",
+    body: "When the date arrives, Ultra drafts an outing where every stop cites the note behind it, so you get credit for paying attention.",
   },
 ];
 
@@ -41,7 +41,7 @@ const FEATURES = [
   {
     icon: MicIcon,
     title: "Voice capture",
-    body: "A mic button that transcribes and files the fact automatically — zero friction between hearing something and keeping it.",
+    body: "A mic button that transcribes and files the fact automatically: zero friction between hearing something and keeping it.",
   },
   {
     icon: TagIcon,
@@ -51,7 +51,7 @@ const FEATURES = [
   {
     icon: MapPinIcon,
     title: "Real outing plans",
-    body: "Grounded in actual places, events, and weather for the date — not generic suggestions.",
+    body: "Grounded in actual places, events, and weather for the date, not generic suggestions.",
   },
   {
     icon: BellIcon,
@@ -61,7 +61,7 @@ const FEATURES = [
   {
     icon: ChatIcon,
     title: "Revise by chat",
-    body: '"Swap dinner for something cheaper" — just say it, and only that stop changes.',
+    body: '"Swap dinner for something cheaper." Just say it, and only that stop changes.',
   },
   {
     icon: LockIcon,
@@ -94,8 +94,8 @@ export default function Landing() {
           </Reveal>
           <Reveal delay={0.1} className="mt-6 flex flex-col gap-4 text-ink-muted">
             <p>
-              Someone mentions, in passing, that they&rsquo;ve always wanted to try pottery
-              &mdash; and by the time it would actually be useful, it&rsquo;s gone. That&rsquo;s not
+              Someone mentions, in passing, that they&rsquo;ve always wanted to try pottery,
+              and by the time it would actually be useful, it&rsquo;s gone. That&rsquo;s not
               a character flaw. For a lot of people, especially those with ADHD or
               generally scattered attention, details just don&rsquo;t stick the way other
               people expect them to.
@@ -107,14 +107,20 @@ export default function Landing() {
               remembering to write it down later, no guilt about forgetting.
             </p>
             <p>
-              When the date actually arrives, Kindred has already done the remembering
-              &mdash; and shows its work. Every stop in a plan cites the note behind it, so
+              When the date actually arrives, Kindred has already done the remembering,
+              and shows its work. Every stop in a plan cites the note behind it, so
               the two of you get credit for paying attention, even if the remembering
               wasn&rsquo;t you.
             </p>
           </Reveal>
           <Reveal delay={0.2} className="mt-10">
-            <HoldingHandsIllustration className="w-full rounded-xl shadow-warm-lg" />
+            <Image
+              src="/images/mission-1.jpg"
+              alt="Silhouettes of three people sitting together on a bench, watching the sunset over the sea"
+              width={600}
+              height={400}
+              className="w-full rounded-xl object-cover shadow-warm-lg"
+            />
           </Reveal>
         </div>
       </section>
@@ -201,7 +207,7 @@ export default function Landing() {
 
       <footer className="border-t border-border px-6 py-8">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 text-xs text-ink-faint sm:flex-row">
-          <p>Kindred &mdash; built on Nemotron 3, via Nebius Token Factory.</p>
+          <p>Kindred is built on Nemotron 3, via Nebius Token Factory.</p>
           <p>MIT licensed.</p>
         </div>
       </footer>

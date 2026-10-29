@@ -252,3 +252,48 @@ body > div {
   animation: breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   background: radial-gradient(circle at 35% 30%, var(--color-clay-hover), var(--color-clay) 70%);
 }
+
+/* Cloud-shaped floating chips on the hero: plain CSS keyframes (not
+   JS-driven) so the loop is guaranteed to run regardless of how the page
+   was hydrated. Each chip gets its own loose, irregular drift path and a
+   lazily morphing lopsided border-radius so it reads as a cloud. */
+@keyframes cloud-float-1 {
+  0% { transform: translate(0, 0); border-radius: 62% 38% 55% 45% / 48% 60% 40% 52%; }
+  25% { transform: translate(22px, -16px); border-radius: 45% 55% 40% 60% / 60% 42% 58% 40%; }
+  50% { transform: translate(6px, -4px); border-radius: 55% 45% 60% 40% / 42% 55% 45% 58%; }
+  75% { transform: translate(-10px, 10px); border-radius: 48% 52% 42% 58% / 58% 40% 60% 42%; }
+  100% { transform: translate(0, 0); border-radius: 62% 38% 55% 45% / 48% 60% 40% 52%; }
+}
+@keyframes cloud-float-2 {
+  0% { transform: translate(0, 0); border-radius: 40% 60% 45% 55% / 55% 45% 60% 40%; }
+  25% { transform: translate(-18px, 14px); border-radius: 58% 42% 60% 40% / 42% 58% 38% 62%; }
+  50% { transform: translate(-4px, 2px); border-radius: 50% 50% 55% 45% / 48% 52% 42% 58%; }
+  75% { transform: translate(12px, -10px); border-radius: 45% 55% 42% 58% / 60% 40% 55% 45%; }
+  100% { transform: translate(0, 0); border-radius: 40% 60% 45% 55% / 55% 45% 60% 40%; }
+}
+@keyframes cloud-float-3 {
+  0% { transform: translate(0, 0); border-radius: 55% 45% 62% 38% / 40% 55% 45% 60%; }
+  25% { transform: translate(16px, -12px); border-radius: 42% 58% 38% 62% / 58% 42% 60% 40%; }
+  50% { transform: translate(2px, -18px); border-radius: 50% 50% 45% 55% / 45% 58% 42% 55%; }
+  75% { transform: translate(-14px, 6px); border-radius: 60% 40% 55% 45% / 42% 60% 38% 58%; }
+  100% { transform: translate(0, 0); border-radius: 55% 45% 62% 38% / 40% 55% 45% 60%; }
+}
+@keyframes cloud-float-4 {
+  0% { transform: translate(0, 0); border-radius: 48% 52% 40% 60% / 60% 40% 55% 45%; }
+  25% { transform: translate(-14px, 10px); border-radius: 60% 40% 58% 42% / 45% 60% 38% 62%; }
+  50% { transform: translate(4px, 18px); border-radius: 52% 48% 50% 50% / 50% 48% 52% 48%; }
+  75% { transform: translate(18px, -6px); border-radius: 42% 58% 60% 40% / 58% 42% 48% 52%; }
+  100% { transform: translate(0, 0); border-radius: 48% 52% 40% 60% / 60% 40% 55% 45%; }
+}
+@keyframes cloud-float-5 {
+  0% { transform: translate(0, 0); border-radius: 58% 42% 48% 52% / 42% 58% 45% 55%; }
+  25% { transform: translate(12px, -10px); border-radius: 40% 60% 55% 45% / 60% 40% 58% 42%; }
+  50% { transform: translate(-6px, -16px); border-radius: 50% 50% 52% 48% / 48% 55% 42% 58%; }
+  75% { transform: translate(-16px, 8px); border-radius: 55% 45% 42% 58% / 40% 58% 45% 55%; }
+  100% { transform: translate(0, 0); border-radius: 58% 42% 48% 52% / 42% 58% 45% 55%; }
+}
+.cloud-float-1 { animation: cloud-float-1 13s ease-in-out infinite; }
+.cloud-float-2 { animation: cloud-float-2 15s ease-in-out infinite; }
+.cloud-float-3 { animation: cloud-float-3 16.5s ease-in-out infinite; }
+.cloud-float-4 { animation: cloud-float-4 12.5s ease-in-out infinite; }
+.cloud-float-5 { animation: cloud-float-5 14s ease-in-out infinite; }
