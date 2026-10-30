@@ -220,6 +220,12 @@ class PlanStop(BaseModel):
     cost_estimate: Optional[str] = None
     cited_fact_ids: list[int] = []
     why: Optional[str] = None
+    # True once grounding confirms this stop matches a real candidate place
+    # (by url or by name) - False means the model fell back to a generic
+    # description because no real match was available, and the UI should
+    # say so rather than present it as a confirmed venue. Saved plans from
+    # before this field existed default to True (nothing to re-check).
+    verified: bool = True
 
 
 class PlanOption(BaseModel):

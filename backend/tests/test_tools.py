@@ -146,6 +146,91 @@ def test_search_places_falls_back_to_overpass_without_key(tool_db, monkeypatch):
     assert results[0]["source"] == "openstreetmap"
 
 
+def test_overpass_clauses_use_category_tags_not_just_name_match():
+    # "craft beer taproom" doesn't literally appear in real business names,
+    # so the query must search by OSM tag category (bar/pub/microbrewery),
+    # not just regex the query string against the name field.
+    clauses = places._overpass_clauses("craft beer taproom", 30.27, -97.74)
+    joined = " ".join(clauses)
+    assert '["amenity"="bar"]' in joined
+    assert '["microbrewery"="yes"]' in joined
+    # A loose name-regex clause is still included as a last-resort fallback.
+    assert '["name"~"' in joined
+
+
+def test_overpass_clauses_drops_stopwords_from_name_fallback():
+    clauses = places._overpass_clauses("a nice place near the park", 30.27, -97.74)
+    name_clause = next(c for c in clauses if '["name"~"' in c)
+    assert "nice|place|near|park" not in name_clause  # stopwords excluded
+    assert "park" in name_clause  # not a stopword, and matches the park category too
+    assert '["leisure"="park"]' in " ".join(clauses)
+
+
+def test_search_places_overpass_dedupes_and_skips_unnamed_elements(tool_db, monkeypatch):
+    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
+    )
+    monkeypatch.setattr(
+        "httpx.post",
+        lambda *a, **k: FakeResponse(
+            {
+                "elements": [
+                    {"id": 1, "tags": {"name": "Clayworks"}},
+                    {"id": 1, "tags": {"name": "Clayworks"}},  # duplicate (two matched clauses)
+                    {"id": 2, "tags": {}},  # no name tag - skipped
+                ]
+            }
+        ),
+    )
+    results = places.search_places(query="pottery studio", area="Austin")
+    assert len(results) == 1
+    assert results[0]["name"] == "Clayworks"
+
+
+def test_search_places_overpass_retries_once_on_timeout(tool_db, monkeypatch):
+    import httpx as httpx_module
+
+    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
+    )
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+
+    calls = {"n": 0}
+
+    def flaky_post(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx_module.TimeoutException("timed out")
+        return FakeResponse({"elements": [{"id": 1, "tags": {"name": "Clayworks"}}]})
+
+    monkeypatch.setattr("httpx.post", flaky_post)
+    results = places.search_places(query="pottery studio", area="Austin")
+    assert calls["n"] == 2
+    assert results[0]["name"] == "Clayworks"
+
+
+def test_search_places_overpass_raises_after_repeated_timeout(tool_db, monkeypatch):
+    import httpx as httpx_module
+
+    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
+    )
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+
+    def always_times_out(*a, **k):
+        raise httpx_module.TimeoutException("timed out")
+
+    monkeypatch.setattr("httpx.post", always_times_out)
+    with pytest.raises(RuntimeError, match="Overpass search failed"):
+        places.search_places(query="pottery studio", area="Austin")
+
+
 # ---- events ----
 
 def test_search_events_without_any_key_configured_raises(tool_db, monkeypatch):

@@ -73,17 +73,24 @@ def _format_candidates(candidates: CandidateSearchResult) -> str:
     return "\n".join(lines) if lines else "(no candidates found)"
 
 
-def _ground_stop(stop: PlanStop, known_fact_ids: set[int], known_urls: set[str]) -> PlanStop:
+def _ground_stop(
+    stop: PlanStop, known_fact_ids: set[int], known_urls: set[str], known_names: set[str]
+) -> PlanStop:
     stop.cited_fact_ids = [fid for fid in stop.cited_fact_ids if fid in known_fact_ids]
+    # Check before clearing the url - a surviving url is itself proof this
+    # is a real candidate, but we still need that signal after nulling it.
+    stop.verified = (stop.url in known_urls) if stop.url else (stop.name.strip().lower() in known_names)
     if stop.url and stop.url not in known_urls:
         stop.url = None
     return stop
 
 
-def _ground_plan(result: PlanGenerateResult, known_fact_ids: set[int], known_urls: set[str]) -> PlanGenerateResult:
+def _ground_plan(
+    result: PlanGenerateResult, known_fact_ids: set[int], known_urls: set[str], known_names: set[str]
+) -> PlanGenerateResult:
     for option in result.options:
         for stop in option.stops:
-            _ground_stop(stop, known_fact_ids, known_urls)
+            _ground_stop(stop, known_fact_ids, known_urls, known_names)
     return result
 
 
@@ -105,6 +112,9 @@ def generate_plan_options(
     all_facts = [f for facts in people_facts.values() for f in facts]
     known_fact_ids = {f.id for f in all_facts}
     known_urls = {p.url for p in candidates.places if p.url} | {e.url for e in candidates.events if e.url}
+    known_names = {p.name.strip().lower() for p in candidates.places} | {
+        e.name.strip().lower() for e in candidates.events
+    }
 
     people_block = "\n\n".join(
         f"{name}:\n{_format_facts(facts)}" for name, facts in people_facts.items()
@@ -129,7 +139,7 @@ def generate_plan_options(
         max_tokens=COMPLETION_MAX_TOKENS,
     )
     result = parse_structured_json(response.choices[0].message.content, PlanGenerateResult)
-    return _ground_plan(result, known_fact_ids, known_urls)
+    return _ground_plan(result, known_fact_ids, known_urls, known_names)
 
 
 STOP_REVISION_SYSTEM_PROMPT = """You revise exactly ONE stop in an existing outing plan, based on a \
@@ -169,6 +179,9 @@ def revise_stop(
     all_facts = [f for facts in people_facts.values() for f in facts]
     known_fact_ids = {f.id for f in all_facts}
     known_urls = {p.url for p in candidates.places if p.url} | {e.url for e in candidates.events if e.url}
+    known_names = {p.name.strip().lower() for p in candidates.places} | {
+        e.name.strip().lower() for e in candidates.events
+    }
 
     people_block = "\n\n".join(
         f"{name}:\n{_format_facts(facts)}" for name, facts in people_facts.items()
@@ -196,4 +209,4 @@ def revise_stop(
         max_tokens=COMPLETION_MAX_TOKENS,
     )
     result = parse_structured_json(response.choices[0].message.content, StopReviseResult)
-    return _ground_stop(result.stop, known_fact_ids, known_urls)
+    return _ground_stop(result.stop, known_fact_ids, known_urls, known_names)

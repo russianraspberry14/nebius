@@ -143,6 +143,14 @@ function OptionCard({
               {stop.cost_estimate && (
                 <span className="text-sm text-ink-muted">{stop.cost_estimate}</span>
               )}
+              {!stop.verified && (
+                <span
+                  className="rounded-full bg-amber-soft px-2 py-0.5 text-xs font-medium text-amber-ink"
+                  title="Couldn't find a specific real place for this one - treat it as an idea, not a confirmed spot."
+                >
+                  no specific spot found
+                </span>
+              )}
             </div>
             {stop.why && <p className="mt-0.5 text-sm text-ink-muted">{stop.why}</p>}
             <CitedFacts factIds={stop.cited_fact_ids} facts={facts} />

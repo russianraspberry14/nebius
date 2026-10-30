@@ -86,6 +86,7 @@ export interface PlanStop {
   cost_estimate: string | null;
   cited_fact_ids: number[];
   why: string | null;
+  verified: boolean;
 }
 
 export interface PlanOption {

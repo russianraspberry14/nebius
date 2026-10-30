@@ -33,6 +33,7 @@ def test_generate_plan_returns_grounded_options(client, monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert body["options"][0]["title"] == "Option A"
+    assert body["options"][0]["stops"][0]["verified"] is True  # defaults true when unset
 
 
 def test_generate_plan_404s_for_unknown_person(client):

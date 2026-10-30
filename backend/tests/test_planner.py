@@ -36,12 +36,19 @@ def test_ground_plan_strips_unknown_fact_ids_and_urls():
         }
     )
 
-    grounded = planner._ground_plan(result, known_fact_ids={1, 2}, known_urls={"https://real.example/clayworks"})
+    grounded = planner._ground_plan(
+        result,
+        known_fact_ids={1, 2},
+        known_urls={"https://real.example/clayworks"},
+        known_names={"clayworks"},
+    )
 
     assert grounded.options[0].stops[0].cited_fact_ids == [1]
     assert grounded.options[0].stops[0].url == "https://real.example/clayworks"
+    assert grounded.options[0].stops[0].verified is True
     assert grounded.options[0].stops[1].url is None  # not a known candidate url
     assert grounded.options[0].stops[1].cited_fact_ids == [1]
+    assert grounded.options[0].stops[1].verified is False  # name doesn't match any real candidate
 
 
 def test_generate_plan_options_without_ultra_model_id_raises(monkeypatch):
