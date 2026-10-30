@@ -1,8 +1,12 @@
 """search_places(query, area) -> candidate venues.
 
 Primary: Google Places API (New) Text Search, if GOOGLE_PLACES_API_KEY is set.
-Fallback: OpenStreetMap Overpass (keyless, thinner coverage) - keeps the demo
-runnable with zero billing setup.
+Fallback, keyless: OpenStreetMap Nominatim's own /search endpoint, searched
+by venue category rather than the raw query text (a real craft-beer bar is
+almost never literally named "craft beer taproom"). Overpass is kept as a
+second-line fallback for the categories Nominatim's index covers more
+thinly (pottery studios, board-game cafes), since live testing found
+Nominatim far more reliably reachable than the shared Overpass instance.
 """
 
 import re
@@ -15,17 +19,17 @@ from app.tools.cache import cached
 from app.tools.geocode import geocode
 
 GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
-# The main instance is a single shared, free, heavily-used server that's
-# frequently overloaded - these are independently-run mirrors of the same
-# Overpass API, so a timeout on one doesn't have to mean no real search
-# happens at all.
+NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
 ]
-# Overpass's nginx front-end 406s requests with no (or a generic) User-Agent.
-OVERPASS_USER_AGENT = "Kindred/0.1 (hackathon demo project, contact via project repo)"
+# Both OSM services' usage policies ask for a descriptive User-Agent, and
+# Overpass's nginx front-end 406s requests that don't send one at all.
+USER_AGENT = "Kindred/0.1 (hackathon demo project, contact via project repo)"
+# Nominatim's public instance asks for max 1 request/second.
+NOMINATIM_MIN_INTERVAL = 1.1
 
 STOPWORDS = {
     "a", "an", "the", "in", "near", "at", "with", "for", "of", "to", "and",
@@ -36,8 +40,9 @@ STOPWORDS = {
 # conversational query against a place's *name* almost never works (a real
 # craft-beer bar is tagged amenity=bar / microbrewery=yes, it isn't
 # literally named "craft beer taproom"). Each keyword found in the query
-# adds its tag clauses to an OR'd search, so "vegetarian restaurant" pulls
-# in both the cuisine and the venue type.
+# adds its tag clauses to the search, so "vegetarian restaurant" pulls in
+# both the cuisine and the venue type. Also used to derive plain search
+# terms for Nominatim (see _nominatim_terms_for).
 CATEGORY_TAGS: dict[str, list[str]] = {
     "restaurant": ['["amenity"="restaurant"]'],
     "dinner": ['["amenity"="restaurant"]'],
@@ -81,6 +86,9 @@ CATEGORY_TAGS: dict[str, list[str]] = {
     "spa": ['["shop"="beauty"]', '["leisure"="spa"]'],
 }
 
+_TAG_VALUE_RE = re.compile(r'="([^"]+)"')
+_last_nominatim_call = 0.0
+
 
 def _search_places_google(query: str, area: str) -> list[dict]:
     resp = httpx.post(
@@ -110,12 +118,85 @@ def _search_places_google(query: str, area: str) -> list[dict]:
     ]
 
 
-def _overpass_clauses(query: str, lat: float, lon: float) -> list[str]:
-    """Builds one `node(around:...)[tag=value];` clause per matched category,
-    plus a loose name-regex clause on whatever's left - so a query hits real
-    OSM tag categories first, with a name match only as a last resort."""
+def _significant_words(query: str) -> list[str]:
     words = re.findall(r"[a-z]+", query.lower())
-    significant = [w for w in words if w not in STOPWORDS]
+    return [w for w in words if w not in STOPWORDS]
+
+
+def _nominatim_terms_for(query: str) -> list[str]:
+    """Plain search terms Nominatim's own index actually matches well -
+    derived from the same category map as Overpass, by pulling the tag
+    *value* back out (["amenity"="bar"] -> "bar"), since Nominatim matches
+    venue type/name, not OSM tag syntax."""
+    terms: list[str] = []
+    for word in _significant_words(query):
+        for clause in CATEGORY_TAGS.get(word, []):
+            m = _TAG_VALUE_RE.search(clause)
+            if not m:
+                continue
+            value = m.group(1).replace("_", " ")
+            if value != "yes" and value not in terms:
+                terms.append(value)
+    return terms or _significant_words(query)[:2]
+
+
+def _throttle_nominatim() -> None:
+    global _last_nominatim_call
+    wait = NOMINATIM_MIN_INTERVAL - (time.monotonic() - _last_nominatim_call)
+    if wait > 0:
+        time.sleep(wait)
+    _last_nominatim_call = time.monotonic()
+
+
+def _search_places_nominatim(query: str, area: str) -> list[dict]:
+    coords = geocode(city=area)
+    lat, lon = coords["lat"], coords["lon"]
+    # A loose bounding box (~11km) around the area's center, as a soft hint
+    # rather than a hard filter (bounded=1 would exclude anything just
+    # outside it, which is too strict for an "area" that's really a city).
+    viewbox = f"{lon - 0.1},{lat + 0.1},{lon + 0.1},{lat - 0.1}"
+
+    results: list[dict] = []
+    seen_ids: set[str] = set()
+    for term in _nominatim_terms_for(query):
+        if len(results) >= 8:
+            break
+        _throttle_nominatim()
+        resp = httpx.get(
+            NOMINATIM_SEARCH_URL,
+            params={
+                "q": term,
+                "format": "jsonv2",
+                "viewbox": viewbox,
+                "limit": 8,
+            },
+            headers={"User-Agent": USER_AGENT},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        for item in resp.json():
+            osm_id = f"{item.get('osm_type')}{item.get('osm_id')}"
+            if osm_id in seen_ids:
+                continue
+            seen_ids.add(osm_id)
+            name = item.get("display_name", "").split(",")[0].strip()
+            if not name:
+                continue
+            results.append(
+                {
+                    "name": name,
+                    "address": item.get("display_name"),
+                    "rating": None,
+                    "price_level": None,
+                    "url": f"https://www.google.com/maps/search/?api=1&query={item['lat']},{item['lon']}",
+                    "source": "nominatim",
+                }
+            )
+    return results
+
+
+def _overpass_clauses(query: str, lat: float, lon: float) -> list[str]:
+    significant = _significant_words(query)
 
     tag_filters: list[str] = []
     for word in significant:
@@ -142,7 +223,7 @@ def _search_places_overpass(query: str, area: str) -> list[dict]:
             resp = httpx.post(
                 url,
                 data={"data": overpass_query},
-                headers={"User-Agent": OVERPASS_USER_AGENT},
+                headers={"User-Agent": USER_AGENT},
                 timeout=20,
             )
             resp.raise_for_status()
@@ -179,4 +260,27 @@ def _search_places_overpass(query: str, area: str) -> list[dict]:
 def search_places(query: str, area: str) -> list[dict]:
     if GOOGLE_PLACES_API_KEY:
         return _search_places_google(query=query, area=area)
-    return _search_places_overpass(query=query, area=area)
+
+    nominatim_error: Exception | None = None
+    try:
+        results = _search_places_nominatim(query=query, area=area)
+    except Exception as exc:
+        nominatim_error = exc
+        results = []
+    if results:
+        return results
+
+    # Nominatim came up empty - either a niche category its index covers
+    # thinly, or it errored - Overpass's wider tag search is worth a shot
+    # before giving up.
+    try:
+        return _search_places_overpass(query=query, area=area)
+    except Exception as overpass_error:
+        if nominatim_error is not None:
+            # Both sources actually failed (not "genuinely no results") -
+            # raise so the 24h cache doesn't memoize a transient outage as
+            # "nothing here".
+            raise RuntimeError(
+                f"Both place sources failed: nominatim={nominatim_error}; overpass={overpass_error}"
+            ) from overpass_error
+        return results

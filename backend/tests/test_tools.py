@@ -131,12 +131,45 @@ def test_search_places_uses_google_when_key_set(tool_db, monkeypatch):
     assert results[0]["source"] == "google_places"
 
 
-def test_search_places_falls_back_to_overpass_without_key(tool_db, monkeypatch):
+GEOCODE_RESPONSE = {"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}
+
+
+def _fake_get_dispatcher(nominatim_response):
+    """A fake httpx.get that routes to geocode's or Nominatim's shape
+    based on the URL - both go through httpx.get, so a single mock has to
+    tell them apart."""
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        if "nominatim" in url:
+            return FakeResponse(nominatim_response)
+        return FakeResponse(GEOCODE_RESPONSE)
+
+    return fake_get
+
+
+def test_search_places_uses_nominatim_without_key(tool_db, monkeypatch):
     monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
-    monkeypatch.setattr(
-        "httpx.get",
-        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
-    )
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+    nominatim_results = [
+        {
+            "osm_type": "node",
+            "osm_id": 1,
+            "display_name": "Lavaca Street Bar, 405, Lavaca Street, Austin, Texas",
+            "lat": "30.267",
+            "lon": "-97.743",
+        }
+    ]
+    monkeypatch.setattr("httpx.get", _fake_get_dispatcher(nominatim_results))
+    results = places.search_places(query="craft beer taproom", area="Austin")
+    assert results[0]["name"] == "Lavaca Street Bar"
+    assert results[0]["source"] == "nominatim"
+    assert results[0]["url"] == "https://www.google.com/maps/search/?api=1&query=30.267,-97.743"
+
+
+def test_search_places_falls_back_to_overpass_when_nominatim_empty(tool_db, monkeypatch):
+    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+    monkeypatch.setattr("httpx.get", _fake_get_dispatcher([]))  # Nominatim finds nothing
     monkeypatch.setattr(
         "httpx.post",
         lambda *a, **k: FakeResponse({"elements": [{"id": 1, "tags": {"name": "Clayworks"}}]}),
@@ -144,6 +177,36 @@ def test_search_places_falls_back_to_overpass_without_key(tool_db, monkeypatch):
     results = places.search_places(query="pottery studio", area="Austin")
     assert results[0]["name"] == "Clayworks"
     assert results[0]["source"] == "openstreetmap"
+
+
+def test_search_places_raises_when_both_sources_fail(tool_db, monkeypatch):
+    # If both free sources genuinely error (not just "no results"), the
+    # failure must propagate rather than get cached as an empty result for
+    # 24h - a transient outage shouldn't look like "nothing here" tomorrow.
+    import httpx as httpx_module
+
+    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+
+    def nominatim_get(url, params=None, headers=None, timeout=None):
+        if "nominatim" in url:
+            raise httpx_module.TimeoutException("timed out")
+        return FakeResponse(GEOCODE_RESPONSE)
+
+    def always_times_out(*a, **k):
+        raise httpx_module.TimeoutException("timed out")
+
+    monkeypatch.setattr("httpx.get", nominatim_get)
+    monkeypatch.setattr("httpx.post", always_times_out)
+    with pytest.raises(RuntimeError, match="Both place sources failed"):
+        places.search_places(query="pottery studio", area="Austin")
+
+
+def test_nominatim_terms_for_uses_category_values_not_raw_query():
+    # Pulls the tag *value* back out of the Overpass category map, since
+    # Nominatim matches plain words like "bar", not OSM tag syntax.
+    assert places._nominatim_terms_for("craft beer taproom") == ["bar", "pub"]
+    assert places._nominatim_terms_for("vegetarian restaurant") == ["restaurant"]
 
 
 def test_overpass_clauses_use_category_tags_not_just_name_match():
@@ -168,10 +231,8 @@ def test_overpass_clauses_drops_stopwords_from_name_fallback():
 
 def test_search_places_overpass_dedupes_and_skips_unnamed_elements(tool_db, monkeypatch):
     monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
-    monkeypatch.setattr(
-        "httpx.get",
-        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
-    )
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+    monkeypatch.setattr("httpx.get", _fake_get_dispatcher([]))  # Nominatim finds nothing
     monkeypatch.setattr(
         "httpx.post",
         lambda *a, **k: FakeResponse(
@@ -193,11 +254,8 @@ def test_search_places_overpass_retries_once_on_timeout(tool_db, monkeypatch):
     import httpx as httpx_module
 
     monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
-    monkeypatch.setattr(
-        "httpx.get",
-        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
-    )
     monkeypatch.setattr("time.sleep", lambda *a: None)
+    monkeypatch.setattr("httpx.get", _fake_get_dispatcher([]))  # Nominatim finds nothing
 
     calls = {"n": 0}
 
@@ -213,22 +271,21 @@ def test_search_places_overpass_retries_once_on_timeout(tool_db, monkeypatch):
     assert results[0]["name"] == "Clayworks"
 
 
-def test_search_places_overpass_raises_after_repeated_timeout(tool_db, monkeypatch):
+def test_overpass_raises_after_every_mirror_times_out(tool_db, monkeypatch):
+    # Unit-level: _search_places_overpass itself, not the search_places
+    # wrapper (which gracefully falls back to an empty list rather than
+    # raising once Nominatim has already succeeded, even with 0 results).
     import httpx as httpx_module
 
-    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
-    monkeypatch.setattr(
-        "httpx.get",
-        lambda *a, **k: FakeResponse({"results": [{"name": "Austin", "country": "US", "latitude": 30.27, "longitude": -97.74}]}),
-    )
     monkeypatch.setattr("time.sleep", lambda *a: None)
+    monkeypatch.setattr("httpx.get", _fake_get_dispatcher([]))
 
     def always_times_out(*a, **k):
         raise httpx_module.TimeoutException("timed out")
 
     monkeypatch.setattr("httpx.post", always_times_out)
-    with pytest.raises(RuntimeError, match="Overpass search failed"):
-        places.search_places(query="pottery studio", area="Austin")
+    with pytest.raises(RuntimeError, match="Overpass search failed on every mirror"):
+        places._search_places_overpass(query="pottery studio", area="Austin")
 
 
 # ---- events ----
