@@ -110,10 +110,45 @@ def test_tool_dispatch_errors_are_returned_not_raised(no_model_check):
     def boom(**kwargs):
         raise ValueError("No events source configured.")
 
-    result = tool_loop._dispatch_tool(
+    result, args = tool_loop._dispatch_tool(
         "search_events", json.dumps({"area": "Austin", "date_range": "2026-11-12"}), {"search_events": boom}
     )
     assert result == {"error": "No events source configured."}
+    assert args == {"area": "Austin", "date_range": "2026-11-12"}
+
+
+def test_run_candidate_search_groups_raw_search_places_results_by_query(monkeypatch, no_model_check):
+    # search_groups is the actual tool output, grouped by query - distinct
+    # from Super's own places/events summary, which can drop or reorder
+    # what it saw. A stop's alternatives carousel is built from this, not
+    # from Super's summary.
+    monkeypatch.setattr(
+        tool_loop,
+        "_active_tools",
+        lambda: (
+            {"search_places": lambda **kwargs: [{"name": "Clayworks", "source": "test"}]},
+            [],
+        ),
+    )
+
+    calls = []
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                tc = _tool_call("call_1", "search_places", {"query": "pottery studio", "area": "Austin"})
+                return _response(_message(tool_calls=[tc]))
+            final = CandidateSearchResult(places=[], events=[], weather=None)
+            return _response(_message(content=final.model_dump_json()))
+
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions()))
+    monkeypatch.setattr(tool_loop, "get_client", lambda: fake_client)
+
+    result = tool_loop.run_candidate_search(occasion="birthday", date="2026-11-12", area="Austin")
+    assert len(result.search_groups) == 1
+    assert result.search_groups[0].query == "pottery studio"
+    assert result.search_groups[0].places[0].name == "Clayworks"
 
 
 def test_active_tools_excludes_events_without_a_key(monkeypatch):

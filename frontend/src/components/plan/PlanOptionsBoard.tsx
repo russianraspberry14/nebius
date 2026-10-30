@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { api, ApiError, Fact, PlanOption } from "@/lib/api";
+import { api, ApiError, Fact, PlaceCandidate, PlanOption } from "@/lib/api";
 import { CATEGORY_LABEL } from "@/lib/constants";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -24,6 +24,34 @@ function CitedFacts({ factIds, facts }: { factIds: number[]; facts: Fact[] }) {
         >
           {f.value}
         </span>
+      ))}
+    </div>
+  );
+}
+
+/** Other real places from the same search category as a stop - picking one
+ * swaps the stop client-side, no LLM call needed since these are already
+ * real, grounded candidates from the original search. */
+function AlternativesCarousel({
+  alternatives,
+  onPick,
+}: {
+  alternatives: PlaceCandidate[];
+  onPick: (alt: PlaceCandidate) => void;
+}) {
+  if (alternatives.length === 0) return null;
+  return (
+    <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+      {alternatives.map((alt) => (
+        <button
+          key={`${alt.name}-${alt.url ?? ""}`}
+          onClick={() => onPick(alt)}
+          title={alt.address ?? undefined}
+          className="shrink-0 rounded-lg border border-border bg-paper px-3 py-1.5 text-left text-xs transition-colors hover:border-clay hover:bg-clay-soft"
+        >
+          <span className="block max-w-40 truncate font-medium text-ink">{alt.name}</span>
+          <span className="text-ink-faint">Use this instead</span>
+        </button>
       ))}
     </div>
   );
@@ -86,6 +114,7 @@ function OptionCard({
   saved,
   onReviseStop,
   revisingStopIndex,
+  onSwapStop,
   delay,
 }: {
   option: PlanOption;
@@ -95,6 +124,7 @@ function OptionCard({
   saved: boolean;
   onReviseStop: (stopIndex: number, instruction: string) => void;
   revisingStopIndex: number | null;
+  onSwapStop: (stopIndex: number, alt: PlaceCandidate) => void;
   delay: number;
 }) {
   return (
@@ -155,10 +185,16 @@ function OptionCard({
             {stop.why && <p className="mt-0.5 text-sm text-ink-muted">{stop.why}</p>}
             <CitedFacts factIds={stop.cited_fact_ids} facts={facts} />
             {!saved && (
-              <ReviseStopForm
-                onSubmit={(instruction) => onReviseStop(i, instruction)}
-                revising={revisingStopIndex === i}
-              />
+              <>
+                <AlternativesCarousel
+                  alternatives={stop.alternatives}
+                  onPick={(alt) => onSwapStop(i, alt)}
+                />
+                <ReviseStopForm
+                  onSubmit={(instruction) => onReviseStop(i, instruction)}
+                  revising={revisingStopIndex === i}
+                />
+              </>
             )}
           </motion.li>
         ))}
@@ -246,6 +282,39 @@ export default function PlanOptionsBoard({
     }
   }
 
+  function handleSwapStop(optionTitle: string, stopIndex: number, alt: PlaceCandidate) {
+    const optionIndex = options.findIndex((o) => o.title === optionTitle);
+    if (optionIndex === -1) return;
+
+    setOptions((prev) => {
+      const updated = [...prev];
+      const stops = [...updated[optionIndex].stops];
+      const current = stops[stopIndex];
+      // The swapped-out stop rejoins the carousel (so the swap is
+      // reversible), and the picked alternative drops out of it.
+      const previousAsAlternative: PlaceCandidate = {
+        name: current.name,
+        address: null,
+        rating: null,
+        price_level: null,
+        url: current.url,
+        source: null,
+      };
+      stops[stopIndex] = {
+        ...current,
+        name: alt.name,
+        url: alt.url,
+        verified: true,
+        alternatives: [
+          previousAsAlternative,
+          ...current.alternatives.filter((a) => a.name !== alt.name || a.url !== alt.url),
+        ],
+      };
+      updated[optionIndex] = { ...updated[optionIndex], stops };
+      return updated;
+    });
+  }
+
   return (
     <div>
       {error && (
@@ -267,6 +336,7 @@ export default function PlanOptionsBoard({
               onReviseStop={(stopIndex, instruction) =>
                 handleReviseStop(option.title, stopIndex, instruction)
               }
+              onSwapStop={(stopIndex, alt) => handleSwapStop(option.title, stopIndex, alt)}
               revisingStopIndex={
                 revising?.optionTitle === option.title ? revising.stopIndex : null
               }

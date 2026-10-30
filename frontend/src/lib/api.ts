@@ -79,6 +79,15 @@ export interface PersonDetail {
   facts: Fact[];
 }
 
+export interface PlaceCandidate {
+  name: string;
+  address: string | null;
+  rating: number | null;
+  price_level: string | null;
+  url: string | null;
+  source: string | null;
+}
+
 export interface PlanStop {
   name: string;
   time: string | null;
@@ -87,6 +96,7 @@ export interface PlanStop {
   cited_fact_ids: number[];
   why: string | null;
   verified: boolean;
+  alternatives: PlaceCandidate[];
 }
 
 export interface PlanOption {

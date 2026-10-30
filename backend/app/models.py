@@ -205,10 +205,21 @@ class CandidateSearchRequest(BaseModel):
     keywords: Optional[str] = ""
 
 
+class PlaceSearchGroup(BaseModel):
+    """The raw results of one search_places(query=...) tool call, kept
+    separate from Super's own places/events summary below. Super's summary
+    is the model's own transcription of what it saw (it can drop or reorder
+    things) - this is the actual tool output, grouped by query, so a stop
+    can offer real alternatives from the same category it was drawn from."""
+    query: str
+    places: list[PlaceCandidate] = []
+
+
 class CandidateSearchResult(BaseModel):
     places: list[PlaceCandidate] = []
     events: list[EventCandidate] = []
     weather: Optional[WeatherInfo] = None
+    search_groups: list[PlaceSearchGroup] = []
 
 
 # ---- Plan (Ultra) ----
@@ -226,6 +237,11 @@ class PlanStop(BaseModel):
     # say so rather than present it as a confirmed venue. Saved plans from
     # before this field existed default to True (nothing to re-check).
     verified: bool = True
+    # Other real places from the same search category as this stop, for a
+    # swap-without-another-LLM-call carousel. Populated by grounding, not
+    # the model - empty for a generic (unverified) stop or a saved plan
+    # from before this field existed.
+    alternatives: list[PlaceCandidate] = []
 
 
 class PlanOption(BaseModel):

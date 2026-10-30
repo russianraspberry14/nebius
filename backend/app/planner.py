@@ -14,11 +14,17 @@ from app.json_utils import parse_structured_json
 from app.models import (
     CandidateSearchResult,
     FactOut,
+    PlaceCandidate,
+    PlaceSearchGroup,
     PlanGenerateResult,
     PlanOption,
     PlanStop,
     StopReviseResult,
 )
+
+# How many other real candidates to offer alongside a grounded stop, for a
+# swap-without-another-LLM-call carousel in the UI.
+MAX_ALTERNATIVES = 4
 from app.nemotron import get_client
 
 # Super and Ultra are reasoning models - they spend completion tokens on
@@ -91,8 +97,28 @@ def _format_candidates(candidates: CandidateSearchResult) -> str:
     return "\n".join(lines) if lines else "(no candidates found)"
 
 
+def _find_alternatives(stop: PlanStop, search_groups: list[PlaceSearchGroup]) -> list[PlaceCandidate]:
+    """Other real places from whichever search_places call turned up this
+    stop's own candidate - same category, so swapping doesn't turn "dinner"
+    into a board game store. Empty for an unverified (generic) stop, since
+    there's no matching group to pull alternatives from."""
+    if not stop.verified:
+        return []
+    name_key = stop.name.strip().lower()
+    for group in search_groups:
+        for place in group.places:
+            if (stop.url and place.url == stop.url) or place.name.strip().lower() == name_key:
+                others = [p for p in group.places if p is not place]
+                return others[:MAX_ALTERNATIVES]
+    return []
+
+
 def _ground_stop(
-    stop: PlanStop, known_fact_ids: set[int], known_urls: set[str], known_names: set[str]
+    stop: PlanStop,
+    known_fact_ids: set[int],
+    known_urls: set[str],
+    known_names: set[str],
+    search_groups: list[PlaceSearchGroup] | None = None,
 ) -> PlanStop:
     stop.cited_fact_ids = [fid for fid in stop.cited_fact_ids if fid in known_fact_ids]
     # Check both signals, not url-with-name-as-fallback-only: the model is
@@ -101,17 +127,22 @@ def _ground_stop(
     # while copying the (short, easy) name exactly right. Either match is
     # real proof this is a real candidate.
     stop.verified = (stop.url in known_urls) or (stop.name.strip().lower() in known_names)
+    stop.alternatives = _find_alternatives(stop, search_groups or [])
     if stop.url and stop.url not in known_urls:
         stop.url = None
     return stop
 
 
 def _ground_plan(
-    result: PlanGenerateResult, known_fact_ids: set[int], known_urls: set[str], known_names: set[str]
+    result: PlanGenerateResult,
+    known_fact_ids: set[int],
+    known_urls: set[str],
+    known_names: set[str],
+    search_groups: list[PlaceSearchGroup] | None = None,
 ) -> PlanGenerateResult:
     for option in result.options:
         for stop in option.stops:
-            _ground_stop(stop, known_fact_ids, known_urls, known_names)
+            _ground_stop(stop, known_fact_ids, known_urls, known_names, search_groups)
     return result
 
 
@@ -160,7 +191,7 @@ def generate_plan_options(
         max_tokens=COMPLETION_MAX_TOKENS,
     )
     result = parse_structured_json(response.choices[0].message.content, PlanGenerateResult)
-    return _ground_plan(result, known_fact_ids, known_urls, known_names)
+    return _ground_plan(result, known_fact_ids, known_urls, known_names, candidates.search_groups)
 
 
 STOP_REVISION_SYSTEM_PROMPT = """You revise exactly ONE stop in an existing outing plan, based on a \
@@ -230,4 +261,4 @@ def revise_stop(
         max_tokens=COMPLETION_MAX_TOKENS,
     )
     result = parse_structured_json(response.choices[0].message.content, StopReviseResult)
-    return _ground_stop(result.stop, known_fact_ids, known_urls, known_names)
+    return _ground_stop(result.stop, known_fact_ids, known_urls, known_names, candidates.search_groups)

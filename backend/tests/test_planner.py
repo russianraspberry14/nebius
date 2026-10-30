@@ -3,7 +3,14 @@ from types import SimpleNamespace
 import pytest
 
 from app import planner
-from app.models import CandidateSearchResult, FactOut, PlanGenerateResult, PlanStop, StopReviseResult
+from app.models import (
+    CandidateSearchResult,
+    FactOut,
+    PlaceSearchGroup,
+    PlanGenerateResult,
+    PlanStop,
+    StopReviseResult,
+)
 
 
 def _fact(id, value="pottery"):
@@ -70,6 +77,50 @@ def test_ground_stop_verifies_by_name_even_when_url_is_mistyped():
 
     assert grounded.verified is True
     assert grounded.url is None  # the mismatched url is still dropped
+
+
+def test_ground_stop_attaches_alternatives_from_the_same_search_group():
+    stop = PlanStop(name="Utopia Bar & Grill", url="https://maps.example/utopia", cited_fact_ids=[])
+    search_groups = [
+        PlaceSearchGroup(
+            query="craft beer taproom",
+            places=[
+                {"name": "Utopia Bar & Grill", "url": "https://maps.example/utopia"},
+                {"name": "Toro Bar", "url": "https://maps.example/toro"},
+                {"name": "The Pub", "url": "https://maps.example/pub"},
+            ],
+        ),
+        PlaceSearchGroup(
+            query="board game cafe",
+            places=[{"name": "Labyrinth Games", "url": "https://maps.example/labyrinth"}],
+        ),
+    ]
+
+    grounded = planner._ground_stop(
+        stop,
+        known_fact_ids=set(),
+        known_urls={"https://maps.example/utopia"},
+        known_names={"utopia bar & grill"},
+        search_groups=search_groups,
+    )
+
+    # Alternatives come from the same category group (craft beer) - not the
+    # unrelated board-game group, and not the stop's own match.
+    assert [a.name for a in grounded.alternatives] == ["Toro Bar", "The Pub"]
+
+
+def test_ground_stop_has_no_alternatives_when_unverified():
+    stop = PlanStop(name="A walk along the river", cited_fact_ids=[])
+    search_groups = [
+        PlaceSearchGroup(query="restaurant", places=[{"name": "Somewhere", "url": "https://x.example"}])
+    ]
+
+    grounded = planner._ground_stop(
+        stop, known_fact_ids=set(), known_urls=set(), known_names=set(), search_groups=search_groups
+    )
+
+    assert grounded.verified is False
+    assert grounded.alternatives == []
 
 
 def test_short_address_drops_redundant_name_and_trailing_boilerplate():

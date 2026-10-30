@@ -9,7 +9,7 @@ import json
 
 from app.config import SEATGEEK_CLIENT_ID, SUPER_MODEL_ID, TICKETMASTER_API_KEY
 from app.json_utils import parse_structured_json
-from app.models import CandidateSearchResult
+from app.models import CandidateSearchResult, PlaceSearchGroup
 from app.nemotron import get_client
 from app.tools.events import search_events
 from app.tools.geocode import geocode
@@ -130,21 +130,24 @@ no markdown fences, matching:
 """
 
 
-def _dispatch_tool(name: str, arguments_json: str, tool_functions: dict):
+def _dispatch_tool(name: str, arguments_json: str, tool_functions: dict) -> tuple[object, dict]:
+    """Returns (result, parsed_args) - the caller needs the args back too,
+    to group a search_places call's raw results by its query without
+    re-parsing the same JSON a second time."""
     fn = tool_functions.get(name)
     if fn is None:
-        return {"error": f"Unknown tool '{name}'"}
+        return {"error": f"Unknown tool '{name}'"}, {}
     try:
         args = json.loads(arguments_json or "{}")
     except json.JSONDecodeError:
-        return {"error": "Could not parse tool arguments as JSON"}
+        return {"error": "Could not parse tool arguments as JSON"}, {}
     try:
-        return fn(**args)
+        return fn(**args), args
     except Exception as exc:
         # Surfaced to the model as a tool result, not raised - lets Super
         # adapt (e.g. skip events if no events source is configured) instead
         # of the whole search failing over one tool's error.
-        return {"error": str(exc)}
+        return {"error": str(exc)}, args
 
 
 def run_candidate_search(
@@ -175,6 +178,11 @@ def run_candidate_search(
         {"role": "user", "content": user_context},
     ]
     tool_functions, tool_schemas = _active_tools()
+    # Super's own JSON summary (below) is its own transcription of what it
+    # saw and can drop/reorder things - this is the actual search_places
+    # output, grouped by query, kept for the carousel of real alternatives
+    # a stop can offer without another LLM call.
+    search_groups: list[PlaceSearchGroup] = []
 
     tool_calls_made = 0
     while tool_calls_made < MAX_TOOL_CALLS:
@@ -189,7 +197,9 @@ def run_candidate_search(
         message = response.choices[0].message
 
         if not message.tool_calls:
-            return parse_structured_json(message.content, CandidateSearchResult)
+            parsed = parse_structured_json(message.content, CandidateSearchResult)
+            parsed.search_groups = search_groups
+            return parsed
 
         messages.append(
             {
@@ -200,7 +210,9 @@ def run_candidate_search(
         )
         for tc in message.tool_calls:
             tool_calls_made += 1
-            result = _dispatch_tool(tc.function.name, tc.function.arguments, tool_functions)
+            result, args = _dispatch_tool(tc.function.name, tc.function.arguments, tool_functions)
+            if tc.function.name == "search_places" and isinstance(result, list):
+                search_groups.append(PlaceSearchGroup(query=args.get("query", ""), places=result))
             messages.append(
                 {"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result)}
             )
@@ -223,4 +235,6 @@ def run_candidate_search(
         temperature=0,
         max_tokens=COMPLETION_MAX_TOKENS,
     )
-    return parse_structured_json(response.choices[0].message.content, CandidateSearchResult)
+    parsed = parse_structured_json(response.choices[0].message.content, CandidateSearchResult)
+    parsed.search_groups = search_groups
+    return parsed
