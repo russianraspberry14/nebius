@@ -202,6 +202,43 @@ def test_search_places_raises_when_both_sources_fail(tool_db, monkeypatch):
         places.search_places(query="pottery studio", area="Austin")
 
 
+def test_search_places_nominatim_retries_once_on_timeout(tool_db, monkeypatch):
+    # The public Nominatim instance is occasionally flaky for a single
+    # request - a transient timeout on the first attempt shouldn't sink
+    # the whole search when a retry would have worked.
+    import httpx as httpx_module
+
+    monkeypatch.setattr("app.tools.places.GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+
+    calls = {"n": 0}
+    nominatim_results = [
+        {
+            "osm_type": "node",
+            "osm_id": 1,
+            "display_name": "Lavaca Street Bar, 405, Lavaca Street, Austin, Texas",
+            "lat": "30.267",
+            "lon": "-97.743",
+        }
+    ]
+
+    def flaky_get(url, params=None, headers=None, timeout=None):
+        if "nominatim" not in url:
+            return FakeResponse(GEOCODE_RESPONSE)
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx_module.TimeoutException("timed out")
+        return FakeResponse(nominatim_results)
+
+    monkeypatch.setattr("httpx.get", flaky_get)
+    # "museum" maps to a single category term, so there's exactly one
+    # Nominatim request to retry (a multi-term query would make the call
+    # count depend on how many terms it takes to reach 8 results).
+    results = places.search_places(query="museum", area="Austin")
+    assert calls["n"] == 2
+    assert results[0]["name"] == "Lavaca Street Bar"
+
+
 def test_nominatim_terms_for_uses_category_values_not_raw_query():
     # Pulls the tag *value* back out of the Overpass category map, since
     # Nominatim matches plain words like "bar", not OSM tag syntax.

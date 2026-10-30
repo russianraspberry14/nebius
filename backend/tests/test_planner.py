@@ -51,6 +51,27 @@ def test_ground_plan_strips_unknown_fact_ids_and_urls():
     assert grounded.options[0].stops[1].verified is False  # name doesn't match any real candidate
 
 
+def test_ground_stop_verifies_by_name_even_when_url_is_mistyped():
+    # Our urls are long lat/lon strings a reasoning model can mangle while
+    # copying - a stop shouldn't lose its "verified" status just because
+    # the url came back slightly wrong when the name is an exact match.
+    stop = PlanStop(
+        name="Clayworks",
+        url="https://www.google.com/maps/search/?api=1&query=30.1,-97.1",  # one digit off
+        cited_fact_ids=[],
+    )
+
+    grounded = planner._ground_stop(
+        stop,
+        known_fact_ids=set(),
+        known_urls={"https://www.google.com/maps/search/?api=1&query=30.100001,-97.1"},
+        known_names={"clayworks"},
+    )
+
+    assert grounded.verified is True
+    assert grounded.url is None  # the mismatched url is still dropped
+
+
 def test_generate_plan_options_without_ultra_model_id_raises(monkeypatch):
     monkeypatch.setattr(planner, "ULTRA_MODEL_ID", "")
     monkeypatch.setattr(planner, "get_client", lambda: SimpleNamespace())

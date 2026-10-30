@@ -77,9 +77,12 @@ def _ground_stop(
     stop: PlanStop, known_fact_ids: set[int], known_urls: set[str], known_names: set[str]
 ) -> PlanStop:
     stop.cited_fact_ids = [fid for fid in stop.cited_fact_ids if fid in known_fact_ids]
-    # Check before clearing the url - a surviving url is itself proof this
-    # is a real candidate, but we still need that signal after nulling it.
-    stop.verified = (stop.url in known_urls) if stop.url else (stop.name.strip().lower() in known_names)
+    # Check both signals, not url-with-name-as-fallback-only: the model is
+    # asked to copy a candidate's url verbatim, but our urls are long
+    # lat/lon strings a reasoning model can mistype mid-generation even
+    # while copying the (short, easy) name exactly right. Either match is
+    # real proof this is a real candidate.
+    stop.verified = (stop.url in known_urls) or (stop.name.strip().lower() in known_names)
     if stop.url and stop.url not in known_urls:
         stop.url = None
     return stop

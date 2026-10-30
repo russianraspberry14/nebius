@@ -159,27 +159,43 @@ def _search_places_nominatim(query: str, area: str) -> list[dict]:
 
     results: list[dict] = []
     seen_ids: set[str] = set()
+    last_error: Exception | None = None
     for term in _nominatim_terms_for(query):
         if len(results) >= 8:
             break
-        _throttle_nominatim()
-        resp = httpx.get(
-            NOMINATIM_SEARCH_URL,
-            params={
-                "q": term,
-                "format": "jsonv2",
-                "viewbox": viewbox,
-                # Without this, viewbox is only a ranking hint - a plain
-                # category word like "bar" matches places literally named
-                # "Bar" anywhere on earth (there's a town called Bar in
-                # Montenegro) before it matches real bars in the area.
-                "bounded": 1,
-                "limit": 8,
-            },
-            headers={"User-Agent": USER_AGENT},
-            timeout=10,
-        )
-        resp.raise_for_status()
+        # The public instance is occasionally flaky for a single request -
+        # one retry clears most of that without waiting for the full
+        # Overpass fallback (which has its own, slower, 3-mirror retry).
+        for attempt in range(2):
+            _throttle_nominatim()
+            try:
+                resp = httpx.get(
+                    NOMINATIM_SEARCH_URL,
+                    params={
+                        "q": term,
+                        "format": "jsonv2",
+                        "viewbox": viewbox,
+                        # Without this, viewbox is only a ranking hint - a
+                        # plain category word like "bar" matches places
+                        # literally named "Bar" anywhere on earth (there's a
+                        # town called Bar in Montenegro) before it matches
+                        # real bars in the area.
+                        "bounded": 1,
+                        "limit": 8,
+                    },
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                break
+            except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.ConnectError) as exc:
+                last_error = exc
+                if attempt == 0:
+                    time.sleep(1)
+        else:
+            # Both attempts for this term failed - skip it rather than
+            # aborting the whole search; other terms may still succeed.
+            continue
         for item in resp.json():
             osm_id = f"{item.get('osm_type')}{item.get('osm_id')}"
             if osm_id in seen_ids:
@@ -198,6 +214,12 @@ def _search_places_nominatim(query: str, area: str) -> list[dict]:
                     "source": "nominatim",
                 }
             )
+    if not results and last_error is not None:
+        # Every term that got tried genuinely failed (not just "no
+        # matches") - raise so search_places() falls through to Overpass
+        # and, if that fails too, doesn't cache this as "no results" for
+        # 24h.
+        raise last_error
     return results
 
 
