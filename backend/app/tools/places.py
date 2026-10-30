@@ -151,9 +151,10 @@ def _throttle_nominatim() -> None:
 def _search_places_nominatim(query: str, area: str) -> list[dict]:
     coords = geocode(city=area)
     lat, lon = coords["lat"], coords["lon"]
-    # A loose bounding box (~11km) around the area's center, as a soft hint
-    # rather than a hard filter (bounded=1 would exclude anything just
-    # outside it, which is too strict for an "area" that's really a city).
+    # A ~11km bounding box around the area's center. Combined with
+    # bounded=1 below, this is a hard filter - without it a plain category
+    # word like "bar" ranks places literally named that (there's a town
+    # called Bar in Montenegro) above real bars in the actual area.
     viewbox = f"{lon - 0.1},{lat + 0.1},{lon + 0.1},{lat - 0.1}"
 
     results: list[dict] = []
@@ -168,6 +169,11 @@ def _search_places_nominatim(query: str, area: str) -> list[dict]:
                 "q": term,
                 "format": "jsonv2",
                 "viewbox": viewbox,
+                # Without this, viewbox is only a ranking hint - a plain
+                # category word like "bar" matches places literally named
+                # "Bar" anywhere on earth (there's a town called Bar in
+                # Montenegro) before it matches real bars in the area.
+                "bounded": 1,
                 "limit": 8,
             },
             headers={"User-Agent": USER_AGENT},
