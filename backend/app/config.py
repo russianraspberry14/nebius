@@ -22,3 +22,9 @@ ULTRA_MODEL_ID = os.getenv("ULTRA_MODEL_ID", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 TICKETMASTER_API_KEY = os.getenv("TICKETMASTER_API_KEY", "")
 SEATGEEK_CLIENT_ID = os.getenv("SEATGEEK_CLIENT_ID", "")
+
+# Comma-separated list of origins allowed to call this API (CORS). Defaults
+# to local dev; set to the deployed frontend's origin(s) in production.
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()
+]

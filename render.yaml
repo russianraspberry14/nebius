@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: kindred-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: JWT_SECRET
+        sync: false
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: NEBIUS_BASE_URL
+        value: https://api.studio.nebius.com/v1
+      - key: NANO_MODEL_ID
+        value: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B
+      - key: SUPER_MODEL_ID
+        value: nvidia/nemotron-3-super-120b-a12b
+      - key: ULTRA_MODEL_ID
+        value: nvidia/Nemotron-3-Ultra-550b-a55b
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: TICKETMASTER_API_KEY
+        sync: false
+      - key: SEATGEEK_CLIENT_ID
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
