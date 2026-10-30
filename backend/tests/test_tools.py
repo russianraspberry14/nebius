@@ -163,7 +163,12 @@ def test_search_places_uses_nominatim_without_key(tool_db, monkeypatch):
     results = places.search_places(query="craft beer taproom", area="Austin")
     assert results[0]["name"] == "Lavaca Street Bar"
     assert results[0]["source"] == "nominatim"
-    assert results[0]["url"] == "https://www.google.com/maps/search/?api=1&query=30.267,-97.743"
+    # Name + address, not bare coordinates - a lat,lon-only query usually
+    # centers the map with no pin or info card.
+    from urllib.parse import unquote
+
+    query = results[0]["url"].split("query=", 1)[1]
+    assert unquote(query) == "Lavaca Street Bar, 405, Lavaca Street, Austin, Texas"
 
 
 def test_search_places_falls_back_to_overpass_when_nominatim_empty(tool_db, monkeypatch):
@@ -237,6 +242,19 @@ def test_search_places_nominatim_retries_once_on_timeout(tool_db, monkeypatch):
     results = places.search_places(query="museum", area="Austin")
     assert calls["n"] == 2
     assert results[0]["name"] == "Lavaca Street Bar"
+
+
+def test_google_maps_url_uses_name_and_address_not_bare_coordinates():
+    from urllib.parse import unquote
+
+    url = places._google_maps_url(
+        "Rowhaven Games", "Rowhaven Games, 7348, Georgia Avenue Northwest, Washington, DC"
+    )
+    query = unquote(url.split("query=", 1)[1])
+    assert query == "Rowhaven Games, 7348, Georgia Avenue Northwest, Washington, DC"
+
+    # No address at all - just search by name.
+    assert unquote(places._google_maps_url("Clayworks", None).split("query=", 1)[1]) == "Clayworks"
 
 
 def test_nominatim_terms_for_uses_category_values_not_raw_query():

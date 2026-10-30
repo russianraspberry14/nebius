@@ -11,6 +11,7 @@ Nominatim far more reliably reachable than the shared Overpass instance.
 
 import re
 import time
+from urllib.parse import quote
 
 import httpx
 
@@ -140,6 +141,22 @@ def _nominatim_terms_for(query: str) -> list[str]:
     return terms or _significant_words(query)[:2]
 
 
+def _google_maps_url(name: str, address: str | None) -> str:
+    """A bare `query=lat,lon` centers the map but usually shows no pin or
+    info card - Maps needs something to actually search for. Name + address
+    resolves to the real listing (hours, phone, reviews)."""
+    if address:
+        # Nominatim's display_name repeats the venue name as its own first
+        # segment - drop it rather than search "Name, Name, Street, ...".
+        first, _, rest = address.partition(",")
+        if first.strip().lower() == name.strip().lower() and rest:
+            address = rest.strip()
+        query = f"{name}, {address}"
+    else:
+        query = name
+    return f"https://www.google.com/maps/search/?api=1&query={quote(query)}"
+
+
 def _throttle_nominatim() -> None:
     global _last_nominatim_call
     wait = NOMINATIM_MIN_INTERVAL - (time.monotonic() - _last_nominatim_call)
@@ -204,13 +221,14 @@ def _search_places_nominatim(query: str, area: str) -> list[dict]:
             name = item.get("display_name", "").split(",")[0].strip()
             if not name:
                 continue
+            address = item.get("display_name")
             results.append(
                 {
                     "name": name,
-                    "address": item.get("display_name"),
+                    "address": address,
                     "rating": None,
                     "price_level": None,
-                    "url": f"https://www.google.com/maps/search/?api=1&query={item['lat']},{item['lon']}",
+                    "url": _google_maps_url(name, address),
                     "source": "nominatim",
                 }
             )
@@ -277,7 +295,10 @@ def _search_places_overpass(query: str, area: str) -> list[dict]:
                 "address": None,
                 "rating": None,
                 "price_level": None,
-                "url": f"https://www.openstreetmap.org/node/{el['id']}",
+                # No address from Overpass's node tags - the area name is
+                # still enough context for Maps to disambiguate a plain
+                # name search (same reasoning as _google_maps_url above).
+                "url": _google_maps_url(name, area),
                 "source": "openstreetmap",
             }
         )
