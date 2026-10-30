@@ -19,8 +19,10 @@ from app.tools.weather import get_weather
 MAX_TOOL_CALLS = 6
 # Super is a reasoning model - it spends completion tokens on hidden
 # reasoning_content before any visible output, so a tight max_tokens can
-# truncate before the real reply (or tool call) ever appears.
-COMPLETION_MAX_TOKENS = 4096
+# truncate before the real reply (or tool call) ever appears. Nominatim tool
+# results now carry full addresses (vs Overpass's bare name+id), so the
+# final JSON summary step has more to digest too.
+COMPLETION_MAX_TOKENS = 8192
 
 BASE_TOOL_FUNCTIONS = {
     "geocode": geocode,

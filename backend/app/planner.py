@@ -23,8 +23,11 @@ from app.nemotron import get_client
 
 # Super and Ultra are reasoning models - they spend completion tokens on
 # hidden reasoning_content before any visible output, so a tight max_tokens
-# can truncate before the real JSON reply ever appears.
-COMPLETION_MAX_TOKENS = 4096
+# can truncate before the real JSON reply ever appears. Nominatim-sourced
+# candidates carry full addresses (vs Overpass's bare name+id), so Ultra now
+# has noticeably more to read and copy from - a live run already truncated
+# mid-JSON at the old budget (confirmed via a 502 in the server logs).
+COMPLETION_MAX_TOKENS = 8192
 
 PLAN_SYSTEM_PROMPT = """You draft an outing or birthday plan for the given person/people, using \
 ONLY the candidate places/events you're given and ONLY the facts you're given about them.
@@ -54,12 +57,27 @@ def _format_facts(facts: list[FactOut]) -> str:
     return "\n".join(f"- id={f.id} [{f.category}] {f.value} (sentiment: {f.sentiment})" for f in facts)
 
 
+def _short_address(address: str | None, name: str) -> str:
+    """Nominatim addresses are full display_names (venue, house number,
+    street, neighborhood, county, state, zip, country) - way more than
+    Ultra needs to pick a stop, and every extra token here is budget it
+    isn't spending on correctly copying the name/url it was given."""
+    if not address:
+        return "no address"
+    parts = [p.strip() for p in address.split(",")]
+    if parts and parts[0].lower() == name.strip().lower():
+        parts = parts[1:]
+    return ", ".join(parts[:3]) or "no address"
+
+
 def _format_candidates(candidates: CandidateSearchResult) -> str:
     lines = []
     if candidates.places:
         lines.append("Places:")
         for p in candidates.places:
-            lines.append(f"- {p.name} | {p.address or 'no address'} | rating {p.rating} | url: {p.url}")
+            lines.append(
+                f"- {p.name} | {_short_address(p.address, p.name)} | rating {p.rating} | url: {p.url}"
+            )
     if candidates.events:
         lines.append("Events:")
         for e in candidates.events:

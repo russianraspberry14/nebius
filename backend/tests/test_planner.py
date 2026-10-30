@@ -72,6 +72,19 @@ def test_ground_stop_verifies_by_name_even_when_url_is_mistyped():
     assert grounded.url is None  # the mismatched url is still dropped
 
 
+def test_short_address_drops_redundant_name_and_trailing_boilerplate():
+    # Real Nominatim display_names repeat the venue name, then tack on
+    # county/state/zip/country - none of which helps Ultra pick a stop, and
+    # all of which is completion-budget it isn't spending on copying the
+    # name/url right.
+    address = (
+        "La Ferme Restaurant, 7101, Brookville Road, Chevy Chase, "
+        "Montgomery County, Maryland, 20815, United States"
+    )
+    assert planner._short_address(address, "La Ferme Restaurant") == "7101, Brookville Road, Chevy Chase"
+    assert planner._short_address(None, "Anywhere") == "no address"
+
+
 def test_generate_plan_options_without_ultra_model_id_raises(monkeypatch):
     monkeypatch.setattr(planner, "ULTRA_MODEL_ID", "")
     monkeypatch.setattr(planner, "get_client", lambda: SimpleNamespace())
